@@ -1239,10 +1239,12 @@ function StatCard({ label, value, tone }) {
 
 function FounderOS() {
   const [activeModule, setActiveModule] = useLocalStorageState("fo_active_module", "Dashboard");
+  const [checklistItems, setChecklistItems] = useLocalStorageState("fo_checklist_items", CHECKLIST_ITEMS);
   const [dailyChecklistByDate, setDailyChecklistByDate] = useLocalStorageState("fo_daily_checklist", {});
   const [dailyActivity, setDailyActivity] = useLocalStorageState("fo_daily_activity", {});
   const [mrrHistory, setMrrHistory] = useLocalStorageState("fo_mrr_history", INITIAL_MRR_HISTORY);
 
+  const [ideaLibrary, setIdeaLibrary] = useLocalStorageState("fo_idea_library", IDEAS);
   const [industriesLog, setIndustriesLog] = useLocalStorageState("fo_ideas_industries_log", []);
   const [painPointsLog, setPainPointsLog] = useLocalStorageState("fo_ideas_pain_points_log", []);
   const [ideaNotes, setIdeaNotes] = useLocalStorageState("fo_ideas_notes", []);
@@ -1271,8 +1273,18 @@ function FounderOS() {
     revenueCalls: 0,
   });
 
+  const [bookLibrary, setBookLibrary] = useLocalStorageState("fo_book_library", BOOKS);
   const [bookState, setBookState] = useLocalStorageState("fo_books_state", {});
   const [podcasts, setPodcasts] = useLocalStorageState("fo_podcasts", []);
+  const [frameworkList, setFrameworkList] = useLocalStorageState("fo_framework_list", FRAMEWORKS);
+  const [startupMistakeList, setStartupMistakeList] = useLocalStorageState("fo_mistake_list", STARTUP_MISTAKES);
+  const [habitList, setHabitList] = useLocalStorageState("fo_habit_list", HABITS);
+  const [vcScaleFactors, setVcScaleFactors] = useLocalStorageState("fo_vc_scale_factors", VC_SCALE_FACTORS);
+  const [vcWeightModel, setVcWeightModel] = useLocalStorageState("fo_vc_weight_model", VC_WEIGHT_MODEL);
+  const [scalePatternPlaybook, setScalePatternPlaybook] = useLocalStorageState(
+    "fo_scale_pattern_playbook",
+    SCALE_PATTERN_PLAYBOOK
+  );
   const [mistakeChecks, setMistakeChecks] = useLocalStorageState("fo_mistake_checks", {});
   const [habitByDate, setHabitByDate] = useLocalStorageState("fo_habit_by_date", {});
   const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
@@ -1352,6 +1364,26 @@ function FounderOS() {
   const [newIndustry, setNewIndustry] = useState("");
   const [newPainPoint, setNewPainPoint] = useState("");
   const [newIdeaNote, setNewIdeaNote] = useState("");
+  const [newChecklistItem, setNewChecklistItem] = useState("");
+  const [newScheduleTask, setNewScheduleTask] = useState({ slot: "", task: "" });
+  const [newInvestorName, setNewInvestorName] = useState("");
+  const [newBookDraft, setNewBookDraft] = useState({ title: "", category: "Execution" });
+  const [newFrameworkText, setNewFrameworkText] = useState("");
+  const [newMistakeText, setNewMistakeText] = useState("");
+  const [newHabitText, setNewHabitText] = useState("");
+  const [newIdeaDraft, setNewIdeaDraft] = useState({
+    title: "",
+    sector: "AI/SaaS",
+    difficulty: "Medium",
+    problem: "",
+    customer: "",
+    solution: "",
+    marketSize: "",
+    revenueModel: "",
+    mvpApproach: "",
+    competitiveAdvantage: "",
+    indiaContext: "",
+  });
 
   const [dailyLogInput, setDailyLogInput] = useState({
     customerConversations: "",
@@ -1488,10 +1520,10 @@ function FounderOS() {
   };
 
   const checklistForToday = dailyChecklistByDate[todaysDate] || {};
-  const completedChecklistCount = CHECKLIST_ITEMS.filter((item) => checklistForToday[item]).length;
+  const completedChecklistCount = checklistItems.filter((item) => checklistForToday[item]).length;
 
   useEffect(() => {
-    const allDone = completedChecklistCount === CHECKLIST_ITEMS.length;
+    const allDone = checklistItems.length > 0 && completedChecklistCount === checklistItems.length;
     setDailyActivity((prev) => {
       const day = prev[todaysDate] || {};
       if (day.dailyChecklistCompletion === allDone) return prev;
@@ -1534,7 +1566,7 @@ function FounderOS() {
 
   const allIdeas = useMemo(() => {
     return [
-      ...IDEAS,
+      ...ideaLibrary,
       ...generatedIdeas.map((g, index) => ({
         id: `ai_${index}_${g.title || "idea"}`,
         title: g.title || `AI Idea ${index + 1}`,
@@ -1550,7 +1582,7 @@ function FounderOS() {
         indiaContext: g.indiaContext || "",
       })),
     ];
-  }, [generatedIdeas]);
+  }, [ideaLibrary, generatedIdeas]);
 
   const filteredIdeas = useMemo(() => {
     return allIdeas.filter((idea) => {
@@ -1759,8 +1791,8 @@ function FounderOS() {
   const ltvCacRatio = (Number(cacInput) || 0) > 0 ? ltv / Number(cacInput) : 0;
 
   const filteredBooks = useMemo(
-    () => BOOKS.filter((book) => bookFilter === "All" || book.category === bookFilter),
-    [bookFilter]
+    () => bookLibrary.filter((book) => bookFilter === "All" || book.category === bookFilter),
+    [bookFilter, bookLibrary]
   );
 
   const toggleChecklist = (item) => {
@@ -1776,6 +1808,66 @@ function FounderOS() {
     });
   };
 
+  const promptEditText = (title, initialValue = "") => {
+    const next = window.prompt(title, String(initialValue || ""));
+    if (next === null) return null;
+    return next.trim();
+  };
+
+  const addChecklistItem = () => {
+    const item = newChecklistItem.trim();
+    if (!item) {
+      showNotice("Checklist item cannot be empty.", "error");
+      return;
+    }
+    if (checklistItems.includes(item)) {
+      showNotice("Checklist item already exists.", "error");
+      return;
+    }
+    setChecklistItems((prev) => [...prev, item]);
+    setNewChecklistItem("");
+    showNotice("Checklist item added.", "success");
+  };
+
+  const editChecklistItem = (index) => {
+    const updated = promptEditText("Edit checklist item", checklistItems[index]);
+    if (updated === null) return;
+    if (!updated) {
+      showNotice("Checklist item cannot be empty.", "error");
+      return;
+    }
+    setChecklistItems((prev) => prev.map((item, i) => (i === index ? updated : item)));
+    setDailyChecklistByDate((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((date) => {
+        const day = { ...(prev[date] || {}) };
+        if (day[checklistItems[index]] !== undefined) {
+          day[updated] = day[checklistItems[index]];
+          delete day[checklistItems[index]];
+        }
+        next[date] = day;
+      });
+      return next;
+    });
+    showNotice("Checklist item updated.", "success");
+  };
+
+  const deleteChecklistItem = (index) => {
+    const item = checklistItems[index];
+    if (!window.confirm(`Delete checklist item "${item}"?`)) return;
+    setChecklistItems((prev) => prev.filter((_, i) => i !== index));
+    setDailyChecklistByDate((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((date) => {
+        const day = { ...(prev[date] || {}) };
+        delete day[item];
+        next[date] = day;
+      });
+      return next;
+    });
+    showNotice("Checklist item deleted.", "success");
+  };
+
   const addMRREntry = () => {
     const m = mrrInputMonth.trim();
     const v = Number(mrrInputValue);
@@ -1787,6 +1879,27 @@ function FounderOS() {
     setMrrInputMonth("");
     setMrrInputValue("");
     showNotice(`MRR entry added for ${m}.`, "success");
+  };
+
+  const editMRREntry = (index) => {
+    const row = mrrHistory[index];
+    const month = promptEditText("Edit month", row?.month || "");
+    if (month === null || !month) return;
+    const valueRaw = promptEditText("Edit MRR value (INR)", String(Math.round((row?.mrr || 0) * 100000)));
+    if (valueRaw === null) return;
+    const value = Number(valueRaw);
+    if (!value) {
+      showNotice("MRR value must be a valid number.", "error");
+      return;
+    }
+    setMrrHistory((prev) => prev.map((entry, i) => (i === index ? { ...entry, month, mrr: value / 100000 } : entry)));
+    showNotice("MRR entry updated.", "success");
+  };
+
+  const deleteMRREntry = (index) => {
+    if (!window.confirm("Delete this MRR entry?")) return;
+    setMrrHistory((prev) => prev.filter((_, i) => i !== index));
+    showNotice("MRR entry deleted.", "success");
   };
 
   const addIdeaNote = () => {
@@ -1801,6 +1914,21 @@ function FounderOS() {
     showNotice("Idea logged.", "success");
   };
 
+  const editIdeaNote = (id) => {
+    const current = ideaNotes.find((item) => item.id === id);
+    if (!current) return;
+    const text = promptEditText("Edit idea note", current.text);
+    if (text === null || !text) return;
+    setIdeaNotes((prev) => prev.map((item) => (item.id === id ? { ...item, text } : item)));
+    showNotice("Idea note updated.", "success");
+  };
+
+  const deleteIdeaNote = (id) => {
+    if (!window.confirm("Delete this idea note?")) return;
+    setIdeaNotes((prev) => prev.filter((item) => item.id !== id));
+    showNotice("Idea note deleted.", "success");
+  };
+
   const addIndustry = () => {
     const value = newIndustry.trim();
     if (!value) {
@@ -1813,6 +1941,21 @@ function FounderOS() {
     showNotice("Industry research logged.", "success");
   };
 
+  const editIndustryLog = (id) => {
+    const current = industriesLog.find((item) => item.id === id);
+    if (!current) return;
+    const value = promptEditText("Edit industry log", current.value);
+    if (value === null || !value) return;
+    setIndustriesLog((prev) => prev.map((item) => (item.id === id ? { ...item, value } : item)));
+    showNotice("Industry log updated.", "success");
+  };
+
+  const deleteIndustryLog = (id) => {
+    if (!window.confirm("Delete this industry log?")) return;
+    setIndustriesLog((prev) => prev.filter((item) => item.id !== id));
+    showNotice("Industry log deleted.", "success");
+  };
+
   const addPainPoint = () => {
     const value = newPainPoint.trim();
     if (!value) {
@@ -1823,6 +1966,140 @@ function FounderOS() {
     setNewPainPoint("");
     updateTodayActivity({ painPointsLogged: 1 });
     showNotice("Pain point logged.", "success");
+  };
+
+  const editPainPointLog = (id) => {
+    const current = painPointsLog.find((item) => item.id === id);
+    if (!current) return;
+    const value = promptEditText("Edit pain point", current.value);
+    if (value === null || !value) return;
+    setPainPointsLog((prev) => prev.map((item) => (item.id === id ? { ...item, value } : item)));
+    showNotice("Pain point updated.", "success");
+  };
+
+  const deletePainPointLog = (id) => {
+    if (!window.confirm("Delete this pain point?")) return;
+    setPainPointsLog((prev) => prev.filter((item) => item.id !== id));
+    showNotice("Pain point deleted.", "success");
+  };
+
+  const addIdeaToLibrary = () => {
+    if (!newIdeaDraft.title.trim() || !newIdeaDraft.problem.trim() || !newIdeaDraft.customer.trim()) {
+      showNotice("Add at least title, problem, and customer for a new idea.", "error");
+      return;
+    }
+    const entry = {
+      id: `idea_custom_${Date.now()}`,
+      title: newIdeaDraft.title.trim(),
+      sector: newIdeaDraft.sector,
+      difficulty: newIdeaDraft.difficulty,
+      problem: newIdeaDraft.problem.trim(),
+      customer: newIdeaDraft.customer.trim(),
+      solution: newIdeaDraft.solution.trim(),
+      marketSize: newIdeaDraft.marketSize.trim(),
+      revenueModel: newIdeaDraft.revenueModel.trim(),
+      mvpApproach: newIdeaDraft.mvpApproach.trim(),
+      competitiveAdvantage: newIdeaDraft.competitiveAdvantage.trim(),
+      indiaContext: newIdeaDraft.indiaContext.trim(),
+      competition: "",
+      moat: "",
+    };
+    setIdeaLibrary((prev) => [entry, ...prev]);
+    setNewIdeaDraft({
+      title: "",
+      sector: "AI/SaaS",
+      difficulty: "Medium",
+      problem: "",
+      customer: "",
+      solution: "",
+      marketSize: "",
+      revenueModel: "",
+      mvpApproach: "",
+      competitiveAdvantage: "",
+      indiaContext: "",
+    });
+    showNotice("Custom idea added to Ideas Lab.", "success");
+  };
+
+  const editIdeaRecord = (ideaId) => {
+    const current = ideaLibrary.find((idea) => idea.id === ideaId);
+    if (!current) return;
+    const title = promptEditText("Edit idea title", current.title);
+    if (title === null || !title) return;
+    const problem = promptEditText("Edit problem", current.problem);
+    if (problem === null || !problem) return;
+    const customer = promptEditText("Edit customer", current.customer);
+    if (customer === null || !customer) return;
+    const solution = promptEditText("Edit solution", current.solution);
+    if (solution === null) return;
+    const marketSize = promptEditText("Edit market size", current.marketSize);
+    if (marketSize === null) return;
+    const revenueModel = promptEditText("Edit revenue model", current.revenueModel);
+    if (revenueModel === null) return;
+    const mvpApproach = promptEditText("Edit MVP approach", current.mvpApproach);
+    if (mvpApproach === null) return;
+    const competitiveAdvantage = promptEditText("Edit competitive advantage", current.competitiveAdvantage);
+    if (competitiveAdvantage === null) return;
+    const indiaContext = promptEditText("Edit India context", current.indiaContext);
+    if (indiaContext === null) return;
+    setIdeaLibrary((prev) =>
+      prev.map((idea) =>
+        idea.id === ideaId
+          ? {
+              ...idea,
+              title,
+              problem,
+              customer,
+              solution,
+              marketSize,
+              revenueModel,
+              mvpApproach,
+              competitiveAdvantage,
+              indiaContext,
+            }
+          : idea
+      )
+    );
+    showNotice("Idea updated.", "success");
+  };
+
+  const deleteIdeaRecord = (ideaId) => {
+    const current = ideaLibrary.find((idea) => idea.id === ideaId);
+    if (!current) return;
+    if (!window.confirm(`Delete idea "${current.title}"?`)) return;
+    setIdeaLibrary((prev) => prev.filter((idea) => idea.id !== ideaId));
+    setShortlistedIdeaIds((prev) => prev.filter((id) => id !== ideaId));
+    setIdeaCompareIds((prev) => prev.filter((id) => id !== ideaId));
+    setProbabilityByIdea((prev) => {
+      const next = { ...prev };
+      delete next[ideaId];
+      return next;
+    });
+    showNotice("Idea deleted.", "success");
+  };
+
+  const saveAiIdeaToLibrary = (idea) => {
+    const saved = {
+      ...idea,
+      id: `idea_ai_saved_${Date.now()}`,
+    };
+    setIdeaLibrary((prev) => [saved, ...prev]);
+    showNotice("AI idea saved to editable library.", "success");
+  };
+
+  const deleteAiIdea = (ideaId) => {
+    const parts = String(ideaId).split("_");
+    const aiIndex = Number(parts[1]);
+    if (Number.isNaN(aiIndex)) return;
+    setGeneratedIdeas((prev) => prev.filter((_, idx) => idx !== aiIndex));
+    setShortlistedIdeaIds((prev) => prev.filter((id) => id !== ideaId));
+    setIdeaCompareIds((prev) => prev.filter((id) => id !== ideaId));
+    setProbabilityByIdea((prev) => {
+      const next = { ...prev };
+      delete next[ideaId];
+      return next;
+    });
+    showNotice("AI idea removed.", "success");
   };
 
   const toggleShortlist = (ideaId) => {
@@ -2023,6 +2300,36 @@ ${JSON.stringify(
     setValidationItems((prev) => prev.map((item) => (item.id === id ? { ...item, stage } : item)));
   };
 
+  const editValidationItemNotes = (id) => {
+    const current = validationItems.find((item) => item.id === id);
+    if (!current) return;
+    const notes = promptEditText("Edit validation notes", current.notes || "");
+    if (notes === null) return;
+    setValidationItems((prev) => prev.map((item) => (item.id === id ? { ...item, notes } : item)));
+    showNotice("Validation note updated.", "success");
+  };
+
+  const deleteValidationItem = (id) => {
+    if (!window.confirm("Delete this validation card?")) return;
+    setValidationItems((prev) => prev.filter((item) => item.id !== id));
+    showNotice("Validation card deleted.", "success");
+  };
+
+  const editInterviewLog = (id) => {
+    const current = interviewLogs.find((item) => item.id === id);
+    if (!current) return;
+    const keyInsight = promptEditText("Edit interview insight", current.keyInsight || "");
+    if (keyInsight === null) return;
+    setInterviewLogs((prev) => prev.map((item) => (item.id === id ? { ...item, keyInsight } : item)));
+    showNotice("Interview log updated.", "success");
+  };
+
+  const deleteInterviewLog = (id) => {
+    if (!window.confirm("Delete this interview log?")) return;
+    setInterviewLogs((prev) => prev.filter((item) => item.id !== id));
+    showNotice("Interview log deleted.", "success");
+  };
+
   const runInterviewAnalysis = async () => {
     if (!interviewAiInput.trim()) {
       setInterviewAiError("Paste interview notes first.");
@@ -2080,6 +2387,13 @@ ${interviewAiInput}
     setCrmContacts((prev) => prev.map((contact) => (contact.id === id ? { ...contact, [key]: value } : contact)));
   };
 
+  const deleteContact = (id) => {
+    if (!window.confirm("Delete this contact?")) return;
+    setCrmContacts((prev) => prev.filter((contact) => contact.id !== id));
+    setCrmCallLogs((prev) => prev.filter((log) => log.contactId !== id));
+    showNotice("Contact deleted.", "success");
+  };
+
   const addCallLog = () => {
     if (!newCallLog.contactId || !newCallLog.summary.trim()) {
       showNotice("Select a contact and add call notes.", "error");
@@ -2088,6 +2402,21 @@ ${interviewAiInput}
     setCrmCallLogs((prev) => [...prev, { id: `call_${Date.now()}`, ...newCallLog }]);
     setNewCallLog({ contactId: "", date: todaysDate, summary: "" });
     showNotice("Call log saved.", "success");
+  };
+
+  const editCallLog = (id) => {
+    const current = crmCallLogs.find((item) => item.id === id);
+    if (!current) return;
+    const summary = promptEditText("Edit call summary", current.summary);
+    if (summary === null || !summary) return;
+    setCrmCallLogs((prev) => prev.map((log) => (log.id === id ? { ...log, summary } : log)));
+    showNotice("Call log updated.", "success");
+  };
+
+  const deleteCallLog = (id) => {
+    if (!window.confirm("Delete this call log?")) return;
+    setCrmCallLogs((prev) => prev.filter((log) => log.id !== id));
+    showNotice("Call log deleted.", "success");
   };
 
   const runOutreachGenerator = async () => {
@@ -2136,12 +2465,35 @@ Include a strong CTA and one line value proposition each.
     );
   };
 
+  const deleteDeal = (id) => {
+    if (!window.confirm("Delete this deal?")) return;
+    setDeals((prev) => prev.filter((deal) => deal.id !== id));
+    showNotice("Deal deleted.", "success");
+  };
+
   const updateInvestorStage = (id, stage) => {
     setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, stage } : inv)));
   };
 
   const updateInvestorNotes = (id, notes) => {
     setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, notes } : inv)));
+  };
+
+  const addInvestor = () => {
+    const name = newInvestorName.trim();
+    if (!name) {
+      showNotice("Investor name is required.", "error");
+      return;
+    }
+    setInvestors((prev) => [...prev, { id: `inv_custom_${Date.now()}`, name, stage: "Researching", notes: "" }]);
+    setNewInvestorName("");
+    showNotice("Investor added.", "success");
+  };
+
+  const deleteInvestor = (id) => {
+    if (!window.confirm("Delete this investor entry?")) return;
+    setInvestors((prev) => prev.filter((inv) => inv.id !== id));
+    showNotice("Investor deleted.", "success");
   };
 
   const runInvestorUpdateGenerator = async () => {
@@ -2196,6 +2548,27 @@ Execution Score: ${weeklyExecutionScore}
     showNotice("Priority added.", "success");
   };
 
+  const editPriority = (id) => {
+    const current = prioritiesForToday.find((item) => item.id === id);
+    if (!current) return;
+    const text = promptEditText("Edit priority", current.text);
+    if (text === null || !text) return;
+    setDailyPrioritiesByDate((prev) => ({
+      ...prev,
+      [todaysDate]: (prev[todaysDate] || []).map((item) => (item.id === id ? { ...item, text } : item)),
+    }));
+    showNotice("Priority updated.", "success");
+  };
+
+  const deletePriority = (id) => {
+    if (!window.confirm("Delete this priority?")) return;
+    setDailyPrioritiesByDate((prev) => ({
+      ...prev,
+      [todaysDate]: (prev[todaysDate] || []).filter((item) => item.id !== id),
+    }));
+    showNotice("Priority deleted.", "success");
+  };
+
   const togglePriority = (id) => {
     setDailyPrioritiesByDate((prev) => ({
       ...prev,
@@ -2208,6 +2581,45 @@ Execution Score: ${weeklyExecutionScore}
       ...prev,
       [todaysDate]: scheduleForToday.map((item) => (item.id === id ? { ...item, done: !item.done } : item)),
     }));
+  };
+
+  const addScheduleItem = () => {
+    if (!newScheduleTask.slot.trim() || !newScheduleTask.task.trim()) {
+      showNotice("Schedule slot and task are required.", "error");
+      return;
+    }
+    setDailyScheduleByDate((prev) => ({
+      ...prev,
+      [todaysDate]: [
+        ...(prev[todaysDate] || scheduleForToday),
+        { id: `s_${Date.now()}`, slot: newScheduleTask.slot.trim(), task: newScheduleTask.task.trim(), done: false },
+      ],
+    }));
+    setNewScheduleTask({ slot: "", task: "" });
+    showNotice("Schedule item added.", "success");
+  };
+
+  const editScheduleItem = (id) => {
+    const current = scheduleForToday.find((item) => item.id === id);
+    if (!current) return;
+    const slot = promptEditText("Edit time slot", current.slot);
+    if (slot === null || !slot) return;
+    const task = promptEditText("Edit task", current.task);
+    if (task === null || !task) return;
+    setDailyScheduleByDate((prev) => ({
+      ...prev,
+      [todaysDate]: scheduleForToday.map((item) => (item.id === id ? { ...item, slot, task } : item)),
+    }));
+    showNotice("Schedule item updated.", "success");
+  };
+
+  const deleteScheduleItem = (id) => {
+    if (!window.confirm("Delete this schedule item?")) return;
+    setDailyScheduleByDate((prev) => ({
+      ...prev,
+      [todaysDate]: scheduleForToday.filter((item) => item.id !== id),
+    }));
+    showNotice("Schedule item deleted.", "success");
   };
 
   const updateJournal = (text) => {
@@ -2248,6 +2660,39 @@ Execution Score: ${weeklyExecutionScore}
     }));
   };
 
+  const addBook = () => {
+    if (!newBookDraft.title.trim()) {
+      showNotice("Book title is required.", "error");
+      return;
+    }
+    const entry = { id: `book_${Date.now()}`, title: newBookDraft.title.trim(), category: newBookDraft.category.trim() || "Execution" };
+    setBookLibrary((prev) => [entry, ...prev]);
+    setNewBookDraft({ title: "", category: "Execution" });
+    showNotice("Book added.", "success");
+  };
+
+  const editBook = (id) => {
+    const current = bookLibrary.find((book) => book.id === id);
+    if (!current) return;
+    const title = promptEditText("Edit book title", current.title);
+    if (title === null || !title) return;
+    const category = promptEditText("Edit book category", current.category);
+    if (category === null || !category) return;
+    setBookLibrary((prev) => prev.map((book) => (book.id === id ? { ...book, title, category } : book)));
+    showNotice("Book updated.", "success");
+  };
+
+  const deleteBook = (id) => {
+    if (!window.confirm("Delete this book?")) return;
+    setBookLibrary((prev) => prev.filter((book) => book.id !== id));
+    setBookState((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    showNotice("Book deleted.", "success");
+  };
+
   const addPodcast = () => {
     if (!newPodcast.title.trim()) {
       showNotice("Podcast title is required.", "error");
@@ -2256,6 +2701,25 @@ Execution Score: ${weeklyExecutionScore}
     setPodcasts((prev) => [...prev, { id: `pod_${Date.now()}`, ...newPodcast }]);
     setNewPodcast({ title: "", host: "", status: "Planned", notes: "" });
     showNotice("Podcast added.", "success");
+  };
+
+  const editPodcast = (id) => {
+    const current = podcasts.find((pod) => pod.id === id);
+    if (!current) return;
+    const title = promptEditText("Edit podcast title", current.title);
+    if (title === null || !title) return;
+    const host = promptEditText("Edit podcast host", current.host || "");
+    if (host === null) return;
+    const notes = promptEditText("Edit podcast notes", current.notes || "");
+    if (notes === null) return;
+    setPodcasts((prev) => prev.map((pod) => (pod.id === id ? { ...pod, title, host, notes } : pod)));
+    showNotice("Podcast updated.", "success");
+  };
+
+  const deletePodcast = (id) => {
+    if (!window.confirm("Delete this podcast?")) return;
+    setPodcasts((prev) => prev.filter((pod) => pod.id !== id));
+    showNotice("Podcast deleted.", "success");
   };
 
   const runDiscoveryKit = () => {
@@ -2275,6 +2739,199 @@ Execution Score: ${weeklyExecutionScore}
 
   const toggleMistake = (index) => {
     setMistakeChecks((prev) => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const addFramework = () => {
+    const text = newFrameworkText.trim();
+    if (!text) {
+      showNotice("Framework text is required.", "error");
+      return;
+    }
+    setFrameworkList((prev) => [...prev, text]);
+    setNewFrameworkText("");
+    showNotice("Framework added.", "success");
+  };
+
+  const editFramework = (index) => {
+    const updated = promptEditText("Edit framework", frameworkList[index]);
+    if (updated === null || !updated) return;
+    setFrameworkList((prev) => prev.map((item, i) => (i === index ? updated : item)));
+    showNotice("Framework updated.", "success");
+  };
+
+  const deleteFramework = (index) => {
+    if (!window.confirm("Delete this framework?")) return;
+    setFrameworkList((prev) => prev.filter((_, i) => i !== index));
+    showNotice("Framework deleted.", "success");
+  };
+
+  const addStartupMistake = () => {
+    const text = newMistakeText.trim();
+    if (!text) {
+      showNotice("Mistake text is required.", "error");
+      return;
+    }
+    setStartupMistakeList((prev) => [...prev, text]);
+    setNewMistakeText("");
+    showNotice("Mistake added.", "success");
+  };
+
+  const editStartupMistake = (index) => {
+    const updated = promptEditText("Edit startup mistake", startupMistakeList[index]);
+    if (updated === null || !updated) return;
+    setStartupMistakeList((prev) => prev.map((item, i) => (i === index ? updated : item)));
+    showNotice("Startup mistake updated.", "success");
+  };
+
+  const deleteStartupMistake = (index) => {
+    if (!window.confirm("Delete this startup mistake?")) return;
+    setStartupMistakeList((prev) => prev.filter((_, i) => i !== index));
+    setMistakeChecks((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((key) => {
+        const numeric = Number(key);
+        if (Number.isNaN(numeric)) return;
+        if (numeric < index) next[numeric] = prev[key];
+        if (numeric > index) next[numeric - 1] = prev[key];
+      });
+      return next;
+    });
+    showNotice("Startup mistake deleted.", "success");
+  };
+
+  const addHabit = () => {
+    const text = newHabitText.trim();
+    if (!text) {
+      showNotice("Habit text is required.", "error");
+      return;
+    }
+    setHabitList((prev) => [...prev, text]);
+    setNewHabitText("");
+    showNotice("Habit added.", "success");
+  };
+
+  const editHabit = (index) => {
+    const oldHabit = habitList[index];
+    const updated = promptEditText("Edit habit", oldHabit);
+    if (updated === null || !updated) return;
+    setHabitList((prev) => prev.map((item, i) => (i === index ? updated : item)));
+    setHabitByDate((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((date) => {
+        const day = { ...(prev[date] || {}) };
+        if (Object.prototype.hasOwnProperty.call(day, oldHabit)) {
+          day[updated] = day[oldHabit];
+          delete day[oldHabit];
+        }
+        next[date] = day;
+      });
+      return next;
+    });
+    showNotice("Habit updated.", "success");
+  };
+
+  const deleteHabit = (index) => {
+    const habit = habitList[index];
+    if (!window.confirm("Delete this habit?")) return;
+    setHabitList((prev) => prev.filter((_, i) => i !== index));
+    setHabitByDate((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((date) => {
+        const day = { ...(prev[date] || {}) };
+        delete day[habit];
+        next[date] = day;
+      });
+      return next;
+    });
+    showNotice("Habit deleted.", "success");
+  };
+
+  const addVcScaleFactor = () => {
+    const title = promptEditText("New VC factor title", "");
+    if (title === null || !title) return;
+    const detail = promptEditText("New VC factor detail", "");
+    if (detail === null || !detail) return;
+    setVcScaleFactors((prev) => [...prev, { title, detail }]);
+    showNotice("VC factor added.", "success");
+  };
+
+  const editVcScaleFactor = (index) => {
+    const current = vcScaleFactors[index];
+    if (!current) return;
+    const title = promptEditText("Edit VC factor title", current.title);
+    if (title === null || !title) return;
+    const detail = promptEditText("Edit VC factor detail", current.detail);
+    if (detail === null || !detail) return;
+    setVcScaleFactors((prev) => prev.map((item, i) => (i === index ? { ...item, title, detail } : item)));
+    showNotice("VC factor updated.", "success");
+  };
+
+  const deleteVcScaleFactor = (index) => {
+    if (!window.confirm("Delete this VC factor?")) return;
+    setVcScaleFactors((prev) => prev.filter((_, i) => i !== index));
+    showNotice("VC factor deleted.", "success");
+  };
+
+  const addVcWeightRow = () => {
+    const factor = promptEditText("New weight factor", "");
+    if (factor === null || !factor) return;
+    const weight = promptEditText("Weight (e.g. 10%)", "");
+    if (weight === null || !weight) return;
+    setVcWeightModel((prev) => [...prev, { factor, weight }]);
+    showNotice("Weight row added.", "success");
+  };
+
+  const editVcWeightRow = (index) => {
+    const current = vcWeightModel[index];
+    if (!current) return;
+    const factor = promptEditText("Edit factor", current.factor);
+    if (factor === null || !factor) return;
+    const weight = promptEditText("Edit weight", current.weight);
+    if (weight === null || !weight) return;
+    setVcWeightModel((prev) => prev.map((item, i) => (i === index ? { factor, weight } : item)));
+    showNotice("Weight row updated.", "success");
+  };
+
+  const deleteVcWeightRow = (index) => {
+    if (!window.confirm("Delete this weight row?")) return;
+    setVcWeightModel((prev) => prev.filter((_, i) => i !== index));
+    showNotice("Weight row deleted.", "success");
+  };
+
+  const addScalePattern = () => {
+    const title = promptEditText("New pattern title", "");
+    if (title === null || !title) return;
+    const why = promptEditText("Why this pattern works", "");
+    if (why === null || !why) return;
+    const examples = promptEditText("Examples", "");
+    if (examples === null) return;
+    const indiaFit = promptEditText("India fit", "");
+    if (indiaFit === null) return;
+    setScalePatternPlaybook((prev) => [...prev, { title, why, examples, indiaFit }]);
+    showNotice("Scale pattern added.", "success");
+  };
+
+  const editScalePattern = (index) => {
+    const current = scalePatternPlaybook[index];
+    if (!current) return;
+    const title = promptEditText("Edit pattern title", current.title);
+    if (title === null || !title) return;
+    const why = promptEditText("Edit why this pattern works", current.why);
+    if (why === null || !why) return;
+    const examples = promptEditText("Edit examples", current.examples);
+    if (examples === null) return;
+    const indiaFit = promptEditText("Edit India fit", current.indiaFit);
+    if (indiaFit === null) return;
+    setScalePatternPlaybook((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, title, why, examples, indiaFit } : item))
+    );
+    showNotice("Scale pattern updated.", "success");
+  };
+
+  const deleteScalePattern = (index) => {
+    if (!window.confirm("Delete this scale pattern?")) return;
+    setScalePatternPlaybook((prev) => prev.filter((_, i) => i !== index));
+    showNotice("Scale pattern deleted.", "success");
   };
 
   const toggleHabit = (habit) => {
@@ -2364,6 +3021,40 @@ Execution Score: ${weeklyExecutionScore}
             Add MRR
           </Button>
         </div>
+
+        <div style={{ marginTop: 10, display: "grid", gap: 6, maxHeight: 190, overflow: "auto", paddingRight: 4 }}>
+          {mrrHistory.map((row, index) => (
+            <div
+              key={`${row.month}_${index}`}
+              style={{
+                border: `1px solid ${TOKENS.border}`,
+                borderRadius: 10,
+                background: TOKENS.surface,
+                padding: 8,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <div style={{ color: TOKENS.text, fontSize: 13 }}>
+                {row.month} | <span style={{ fontFamily: FONT_MONO }}>{formatINR(Number(row.mrr || 0) * 100000)}</span>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Button style={{ padding: "5px 8px", fontSize: 12 }} onClick={() => editMRREntry(index)}>
+                  Edit
+                </Button>
+                <Button
+                  style={{ padding: "5px 8px", fontSize: 12 }}
+                  tone="danger"
+                  onClick={() => deleteMRREntry(index)}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       </Card>
 
       <Card>
@@ -2398,15 +3089,29 @@ Execution Score: ${weeklyExecutionScore}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 16 }}>
         <Card>
           <div style={{ color: TOKENS.text, fontFamily: FONT_BODY, fontWeight: 700, marginBottom: 12 }}>
-            Daily Checklist ({completedChecklistCount}/{CHECKLIST_ITEMS.length})
+            Daily Checklist ({completedChecklistCount}/{checklistItems.length})
           </div>
           <div style={{ display: "grid", gap: 8 }}>
-            {CHECKLIST_ITEMS.map((item) => (
+            {checklistItems.map((item, index) => (
               <label key={item} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                 <input type="checkbox" checked={!!checklistForToday[item]} onChange={() => toggleChecklist(item)} />
                 <span style={{ color: TOKENS.text, fontFamily: FONT_BODY }}>{item}</span>
+                <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editChecklistItem(index)}>
+                  Edit
+                </Button>
+                <Button style={{ padding: "4px 8px", fontSize: 12 }} tone="danger" onClick={() => deleteChecklistItem(index)}>
+                  Delete
+                </Button>
               </label>
             ))}
+          </div>
+          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+            <Input
+              placeholder="New checklist item"
+              value={newChecklistItem}
+              onChange={(e) => setNewChecklistItem(e.target.value)}
+            />
+            <Button onClick={addChecklistItem}>Add</Button>
           </div>
         </Card>
 
@@ -2499,8 +3204,43 @@ Execution Score: ${weeklyExecutionScore}
                 Add
               </Button>
             </div>
-            <div style={{ marginTop: 8, color: TOKENS.muted, fontSize: 12 }}>
-              Recent: {industriesLog.slice(-2).map((item) => item.value).join(" • ") || "No entries yet"}
+            <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+              {industriesLog
+                .slice()
+                .reverse()
+                .slice(0, 3)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      border: `1px solid ${TOKENS.border}`,
+                      borderRadius: 8,
+                      padding: 8,
+                      background: TOKENS.surface,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ color: TOKENS.text, fontSize: 12 }}>{item.value}</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => editIndustryLog(item.id)}>
+                        Edit
+                      </Button>
+                      <Button
+                        tone="danger"
+                        style={{ padding: "4px 8px", fontSize: 11 }}
+                        onClick={() => deleteIndustryLog(item.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              {!industriesLog.length ? (
+                <div style={{ color: TOKENS.muted, fontSize: 12 }}>No entries yet</div>
+              ) : null}
             </div>
           </Card>
           <Card>
@@ -2516,8 +3256,43 @@ Execution Score: ${weeklyExecutionScore}
                 Add
               </Button>
             </div>
-            <div style={{ marginTop: 8, color: TOKENS.muted, fontSize: 12 }}>
-              Recent: {painPointsLog.slice(-2).map((item) => item.value).join(" • ") || "No entries yet"}
+            <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+              {painPointsLog
+                .slice()
+                .reverse()
+                .slice(0, 3)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      border: `1px solid ${TOKENS.border}`,
+                      borderRadius: 8,
+                      padding: 8,
+                      background: TOKENS.surface,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ color: TOKENS.text, fontSize: 12 }}>{item.value}</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => editPainPointLog(item.id)}>
+                        Edit
+                      </Button>
+                      <Button
+                        tone="danger"
+                        style={{ padding: "4px 8px", fontSize: 11 }}
+                        onClick={() => deletePainPointLog(item.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              {!painPointsLog.length ? (
+                <div style={{ color: TOKENS.muted, fontSize: 12 }}>No entries yet</div>
+              ) : null}
             </div>
           </Card>
           <Card>
@@ -2529,11 +3304,115 @@ Execution Score: ${weeklyExecutionScore}
                 Add
               </Button>
             </div>
-            <div style={{ marginTop: 8, color: TOKENS.muted, fontSize: 12 }}>
-              Recent: {ideaNotes.slice(-2).map((item) => item.text).join(" • ") || "No entries yet"}
+            <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+              {ideaNotes
+                .slice()
+                .reverse()
+                .slice(0, 3)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      border: `1px solid ${TOKENS.border}`,
+                      borderRadius: 8,
+                      padding: 8,
+                      background: TOKENS.surface,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ color: TOKENS.text, fontSize: 12 }}>{item.text}</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => editIdeaNote(item.id)}>
+                        Edit
+                      </Button>
+                      <Button
+                        tone="danger"
+                        style={{ padding: "4px 8px", fontSize: 11 }}
+                        onClick={() => deleteIdeaNote(item.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              {!ideaNotes.length ? <div style={{ color: TOKENS.muted, fontSize: 12 }}>No entries yet</div> : null}
             </div>
           </Card>
         </div>
+
+        <Card>
+          <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 10 }}>Add Custom Idea</div>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 8 }}>
+            <Input
+              placeholder="Idea title"
+              value={newIdeaDraft.title}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, title: e.target.value }))}
+            />
+            <Select value={newIdeaDraft.sector} onChange={(e) => setNewIdeaDraft((s) => ({ ...s, sector: e.target.value }))}>
+              {sectors.slice(1).map((sector) => (
+                <option key={sector}>{sector}</option>
+              ))}
+            </Select>
+            <Select
+              value={newIdeaDraft.difficulty}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, difficulty: e.target.value }))}
+            >
+              {difficulties.slice(1).map((level) => (
+                <option key={level}>{level}</option>
+              ))}
+            </Select>
+          </div>
+          <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+            <TextArea
+              placeholder="Problem"
+              value={newIdeaDraft.problem}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, problem: e.target.value }))}
+            />
+            <TextArea
+              placeholder="Customer"
+              value={newIdeaDraft.customer}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, customer: e.target.value }))}
+            />
+            <TextArea
+              placeholder="Solution"
+              value={newIdeaDraft.solution}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, solution: e.target.value }))}
+            />
+            <TextArea
+              placeholder="Market Size"
+              value={newIdeaDraft.marketSize}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, marketSize: e.target.value }))}
+            />
+            <TextArea
+              placeholder="Revenue Model"
+              value={newIdeaDraft.revenueModel}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, revenueModel: e.target.value }))}
+            />
+            <TextArea
+              placeholder="MVP Approach"
+              value={newIdeaDraft.mvpApproach}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, mvpApproach: e.target.value }))}
+            />
+            <TextArea
+              placeholder="Competitive Advantage"
+              value={newIdeaDraft.competitiveAdvantage}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, competitiveAdvantage: e.target.value }))}
+            />
+            <TextArea
+              placeholder="India Context"
+              value={newIdeaDraft.indiaContext}
+              onChange={(e) => setNewIdeaDraft((s) => ({ ...s, indiaContext: e.target.value }))}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Button tone="primary" onClick={addIdeaToLibrary}>
+              Add Idea
+            </Button>
+          </div>
+        </Card>
 
         <Card>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 170px 170px", gap: 10 }}>
@@ -2575,6 +3454,7 @@ Execution Score: ${weeklyExecutionScore}
           {filteredIdeas.map((idea) => {
             const shortlisted = shortlistedIdeaIds.includes(idea.id);
             const selectedCompare = ideaCompareIds.includes(idea.id);
+            const aiIdea = String(idea.id).startsWith("ai_");
             return (
               <Card key={idea.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
@@ -2591,6 +3471,21 @@ Execution Score: ${weeklyExecutionScore}
                     <Button tone={selectedCompare ? "primary" : "default"} onClick={() => toggleCompare(idea.id)}>
                       Compare
                     </Button>
+                    {!aiIdea ? (
+                      <>
+                        <Button onClick={() => editIdeaRecord(idea.id)}>Edit</Button>
+                        <Button tone="danger" onClick={() => deleteIdeaRecord(idea.id)}>
+                          Delete
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button onClick={() => saveAiIdeaToLibrary(idea)}>Save</Button>
+                        <Button tone="danger" onClick={() => deleteAiIdea(idea.id)}>
+                          Delete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "grid", gap: 6, marginTop: 10, color: TOKENS.text, fontSize: 14 }}>
@@ -2738,10 +3633,34 @@ Execution Score: ${weeklyExecutionScore}
             </div>
           </div>
 
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+            <Button onClick={addVcScaleFactor}>
+              <Plus size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+              Add Factor
+            </Button>
+          </div>
+
           <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-            {VC_SCALE_FACTORS.map((item) => (
-              <div key={item.title} style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, background: TOKENS.card }}>
-                <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 13 }}>{item.title}</div>
+            {vcScaleFactors.map((item, index) => (
+              <div
+                key={`${item.title}_${index}`}
+                style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, background: TOKENS.card }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                  <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 13 }}>{item.title}</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editVcScaleFactor(index)}>
+                      Edit
+                    </Button>
+                    <Button
+                      tone="danger"
+                      style={{ padding: "4px 8px", fontSize: 12 }}
+                      onClick={() => deleteVcScaleFactor(index)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
                 <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>{item.detail}</div>
               </div>
             ))}
@@ -2749,12 +3668,32 @@ Execution Score: ${weeklyExecutionScore}
 
           <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
             <div style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, background: TOKENS.card, padding: 10 }}>
-              <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>VC Mental Scoring Weights</div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <div style={{ color: TOKENS.text, fontWeight: 700 }}>VC Mental Scoring Weights</div>
+                <Button style={{ padding: "5px 8px", fontSize: 12 }} onClick={addVcWeightRow}>
+                  Add
+                </Button>
+              </div>
               <div style={{ display: "grid", gap: 6 }}>
-                {VC_WEIGHT_MODEL.map((row) => (
-                  <div key={row.factor} style={{ display: "flex", justifyContent: "space-between", color: TOKENS.text, fontSize: 13 }}>
+                {vcWeightModel.map((row, index) => (
+                  <div
+                    key={`${row.factor}_${index}`}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, color: TOKENS.text, fontSize: 13 }}
+                  >
                     <span>{row.factor}</span>
-                    <span style={{ fontFamily: FONT_MONO }}>{row.weight}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontFamily: FONT_MONO }}>{row.weight}</span>
+                      <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editVcWeightRow(index)}>
+                        Edit
+                      </Button>
+                      <Button
+                        tone="danger"
+                        style={{ padding: "4px 8px", fontSize: 12 }}
+                        onClick={() => deleteVcWeightRow(index)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2784,10 +3723,34 @@ Execution Score: ${weeklyExecutionScore}
             Use these pattern filters daily so ideas are not random. Prefer ideas that match one or more proven scale patterns.
           </div>
 
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+            <Button onClick={addScalePattern}>
+              <Plus size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+              Add Pattern
+            </Button>
+          </div>
+
           <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-            {SCALE_PATTERN_PLAYBOOK.map((item) => (
-              <div key={item.title} style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, background: TOKENS.card }}>
-                <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 13 }}>{item.title}</div>
+            {scalePatternPlaybook.map((item, index) => (
+              <div
+                key={`${item.title}_${index}`}
+                style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, background: TOKENS.card }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                  <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 13 }}>{item.title}</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editScalePattern(index)}>
+                      Edit
+                    </Button>
+                    <Button
+                      tone="danger"
+                      style={{ padding: "4px 8px", fontSize: 12 }}
+                      onClick={() => deleteScalePattern(index)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
                 <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>
                   <strong style={{ color: TOKENS.text }}>Why it works:</strong> {item.why}
                 </div>
@@ -3133,11 +4096,61 @@ Execution Score: ${weeklyExecutionScore}
                         <option key={s}>{s}</option>
                       ))}
                     </Select>
+                    <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+                      <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editValidationItemNotes(item.id)}>
+                        Edit
+                      </Button>
+                      <Button
+                        tone="danger"
+                        style={{ padding: "4px 8px", fontSize: 12 }}
+                        onClick={() => deleteValidationItem(item.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           ))}
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 10 }}>Interview Logs</div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {interviewLogs
+            .slice()
+            .reverse()
+            .map((log) => (
+              <div
+                key={log.id}
+                style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, background: TOKENS.surface }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ color: TOKENS.text, fontSize: 13 }}>
+                    {log.company} | {log.contact} | {log.date}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editInterviewLog(log.id)}>
+                      Edit
+                    </Button>
+                    <Button
+                      tone="danger"
+                      style={{ padding: "4px 8px", fontSize: 12 }}
+                      onClick={() => deleteInterviewLog(log.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+                <div style={{ color: TOKENS.muted, fontSize: 12, marginTop: 6 }}>
+                  Signal {log.signalStrength}/5 | Urgency {log.urgency}/5 | Stage {log.stage}
+                </div>
+                <div style={{ color: TOKENS.text, marginTop: 6, fontSize: 13 }}>{log.keyInsight}</div>
+              </div>
+            ))}
+          {!interviewLogs.length ? <div style={{ color: TOKENS.muted, fontSize: 13 }}>No interview logs yet.</div> : null}
         </div>
       </Card>
 
@@ -3298,6 +4311,11 @@ Execution Score: ${weeklyExecutionScore}
               value={contact.notes || ""}
               onChange={(e) => updateContactField(contact.id, "notes", e.target.value)}
             />
+            <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+              <Button tone="danger" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => deleteContact(contact.id)}>
+                Delete Contact
+              </Button>
+            </div>
           </Card>
         ))}
       </div>
@@ -3309,8 +4327,22 @@ Execution Score: ${weeklyExecutionScore}
             const contact = crmContacts.find((c) => c.id === log.contactId);
             return (
               <div key={log.id} style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10 }}>
-                <div style={{ color: TOKENS.text }}>
-                  {log.date} | {contact ? `${contact.name} (${contact.company})` : "Unknown Contact"}
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ color: TOKENS.text }}>
+                    {log.date} | {contact ? `${contact.name} (${contact.company})` : "Unknown Contact"}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editCallLog(log.id)}>
+                      Edit
+                    </Button>
+                    <Button
+                      tone="danger"
+                      style={{ padding: "4px 8px", fontSize: 12 }}
+                      onClick={() => deleteCallLog(log.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
                 <div style={{ color: TOKENS.muted, marginTop: 4 }}>{log.summary}</div>
               </div>
@@ -3383,7 +4415,7 @@ Execution Score: ${weeklyExecutionScore}
                 borderRadius: 10,
                 padding: 10,
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 160px 160px 180px",
+                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 160px 160px 1fr auto",
                 gap: 8,
               }}
             >
@@ -3398,6 +4430,9 @@ Execution Score: ${weeklyExecutionScore}
               <div style={{ color: TOKENS.muted, alignSelf: "center", fontSize: 13 }}>
                 Prob {(SALES_PROB[deal.stage] || 0) * 100}% | Exp {formatINR((Number(deal.value) || 0) * SALES_PROB[deal.stage])}
               </div>
+              <Button tone="danger" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => deleteDeal(deal.id)}>
+                Delete
+              </Button>
             </div>
           ))}
         </div>
@@ -3517,6 +4552,17 @@ Execution Score: ${weeklyExecutionScore}
     <div style={{ display: "grid", gap: 16 }}>
       <Card>
         <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 12 }}>Investor Pipeline</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <Input
+            placeholder="Add investor / angel name"
+            value={newInvestorName}
+            onChange={(e) => setNewInvestorName(e.target.value)}
+          />
+          <Button tone="primary" onClick={addInvestor}>
+            <Plus size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+            Add
+          </Button>
+        </div>
         <div style={{ display: "grid", gap: 8 }}>
           {investors.map((inv) => (
             <div
@@ -3527,7 +4573,7 @@ Execution Score: ${weeklyExecutionScore}
                 padding: 10,
                 background: TOKENS.surface,
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "1fr 220px 2fr",
+                gridTemplateColumns: isMobile ? "1fr" : "1fr 220px 2fr auto",
                 gap: 8,
               }}
             >
@@ -3538,6 +4584,9 @@ Execution Score: ${weeklyExecutionScore}
                 ))}
               </Select>
               <Input value={inv.notes || ""} onChange={(e) => updateInvestorNotes(inv.id, e.target.value)} placeholder="Notes / next action" />
+              <Button tone="danger" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => deleteInvestor(inv.id)}>
+                Delete
+              </Button>
             </div>
           ))}
         </div>
@@ -3588,10 +4637,32 @@ Execution Score: ${weeklyExecutionScore}
           </div>
           <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
             {prioritiesForToday.map((p) => (
-              <label key={p.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="checkbox" checked={!!p.done} onChange={() => togglePriority(p.id)} />
-                <span style={{ color: TOKENS.text }}>{p.text}</span>
-              </label>
+              <div
+                key={p.id}
+                style={{
+                  border: `1px solid ${TOKENS.border}`,
+                  borderRadius: 8,
+                  padding: 8,
+                  background: TOKENS.surface,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input type="checkbox" checked={!!p.done} onChange={() => togglePriority(p.id)} />
+                  <span style={{ color: TOKENS.text }}>{p.text}</span>
+                </label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editPriority(p.id)}>
+                    Edit
+                  </Button>
+                  <Button tone="danger" style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => deletePriority(p.id)}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         </Card>
@@ -3621,6 +4692,21 @@ Execution Score: ${weeklyExecutionScore}
 
       <Card>
         <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>Daily Schedule</div>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "180px 1fr auto", gap: 8, marginBottom: 8 }}>
+          <Input
+            placeholder="Time slot"
+            value={newScheduleTask.slot}
+            onChange={(e) => setNewScheduleTask((s) => ({ ...s, slot: e.target.value }))}
+          />
+          <Input
+            placeholder="Task"
+            value={newScheduleTask.task}
+            onChange={(e) => setNewScheduleTask((s) => ({ ...s, task: e.target.value }))}
+          />
+          <Button tone="primary" onClick={addScheduleItem}>
+            Add
+          </Button>
+        </div>
         <div style={{ display: "grid", gap: 8 }}>
           {scheduleForToday.map((item) => (
             <div
@@ -3640,9 +4726,21 @@ Execution Score: ${weeklyExecutionScore}
                 <div style={{ color: TOKENS.text }}>{item.task}</div>
                 <div style={{ color: TOKENS.muted, fontSize: 13 }}>{item.slot}</div>
               </div>
-              <Button tone={item.done ? "success" : "default"} onClick={() => toggleSchedule(item.id)}>
-                {item.done ? "Done" : "Mark Done"}
-              </Button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Button tone={item.done ? "success" : "default"} onClick={() => toggleSchedule(item.id)}>
+                  {item.done ? "Done" : "Mark Done"}
+                </Button>
+                <Button style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => editScheduleItem(item.id)}>
+                  Edit
+                </Button>
+                <Button
+                  tone="danger"
+                  style={{ padding: "6px 10px", fontSize: 12 }}
+                  onClick={() => deleteScheduleItem(item.id)}
+                >
+                  Delete
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -3723,12 +4821,28 @@ Execution Score: ${weeklyExecutionScore}
           <div style={{ color: TOKENS.text, fontWeight: 700 }}>Startup Book Stack</div>
           <Select value={bookFilter} onChange={(e) => setBookFilter(e.target.value)} style={{ width: 220 }}>
             <option value="All">All Categories</option>
-            {[...new Set(BOOKS.map((book) => book.category))].map((cat) => (
+            {[...new Set(bookLibrary.map((book) => book.category).filter(Boolean))].map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
             ))}
           </Select>
+        </div>
+        <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 220px auto", gap: 8 }}>
+          <Input
+            placeholder="Book title"
+            value={newBookDraft.title}
+            onChange={(e) => setNewBookDraft((s) => ({ ...s, title: e.target.value }))}
+          />
+          <Input
+            placeholder="Category"
+            value={newBookDraft.category}
+            onChange={(e) => setNewBookDraft((s) => ({ ...s, category: e.target.value }))}
+          />
+          <Button tone="primary" onClick={addBook}>
+            <Plus size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+            Add
+          </Button>
         </div>
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
           {filteredBooks.map((book) => (
@@ -3738,9 +4852,17 @@ Execution Score: ${weeklyExecutionScore}
                   <div style={{ color: TOKENS.text }}>{book.title}</div>
                   <div style={{ color: TOKENS.muted, fontSize: 12 }}>{book.category}</div>
                 </div>
-                <Button tone={bookState[book.id]?.read ? "success" : "default"} onClick={() => toggleBookRead(book.id)}>
-                  {bookState[book.id]?.read ? <CheckCircle2 size={14} /> : "Mark Read"}
-                </Button>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <Button tone={bookState[book.id]?.read ? "success" : "default"} onClick={() => toggleBookRead(book.id)}>
+                    {bookState[book.id]?.read ? <CheckCircle2 size={14} /> : "Mark Read"}
+                  </Button>
+                  <Button style={{ padding: "5px 8px", fontSize: 12 }} onClick={() => editBook(book.id)}>
+                    Edit
+                  </Button>
+                  <Button tone="danger" style={{ padding: "5px 8px", fontSize: 12 }} onClick={() => deleteBook(book.id)}>
+                    Delete
+                  </Button>
+                </div>
               </div>
               <TextArea
                 style={{ marginTop: 8, minHeight: 70 }}
@@ -3778,10 +4900,29 @@ Execution Score: ${weeklyExecutionScore}
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
           {podcasts.map((pod) => (
             <div key={pod.id} style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10 }}>
-              <div style={{ color: TOKENS.text }}>
-                {pod.title} | {pod.host}
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 160px auto", gap: 8, alignItems: "center" }}>
+                <div style={{ color: TOKENS.text }}>
+                  {pod.title} | {pod.host}
+                </div>
+                <Select
+                  value={pod.status}
+                  onChange={(e) =>
+                    setPodcasts((prev) => prev.map((item) => (item.id === pod.id ? { ...item, status: e.target.value } : item)))
+                  }
+                >
+                  <option>Planned</option>
+                  <option>Listening</option>
+                  <option>Completed</option>
+                </Select>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Button style={{ padding: "5px 8px", fontSize: 12 }} onClick={() => editPodcast(pod.id)}>
+                    Edit
+                  </Button>
+                  <Button tone="danger" style={{ padding: "5px 8px", fontSize: 12 }} onClick={() => deletePodcast(pod.id)}>
+                    Delete
+                  </Button>
+                </div>
               </div>
-              <div style={{ color: TOKENS.muted, fontSize: 12, marginTop: 3 }}>{pod.status}</div>
               <div style={{ color: TOKENS.text, marginTop: 6, fontSize: 13 }}>{pod.notes}</div>
             </div>
           ))}
@@ -3794,35 +4935,132 @@ Execution Score: ${weeklyExecutionScore}
     <div style={{ display: "grid", gap: 16 }}>
       <Card>
         <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 10 }}>Mental Frameworks</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <Input
+            placeholder="Add framework"
+            value={newFrameworkText}
+            onChange={(e) => setNewFrameworkText(e.target.value)}
+          />
+          <Button tone="primary" onClick={addFramework}>
+            Add
+          </Button>
+        </div>
         <div style={{ display: "grid", gap: 8 }}>
-          {FRAMEWORKS.map((f) => (
-            <div key={f} style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, color: TOKENS.text }}>
-              {f}
+          {frameworkList.map((f, index) => (
+            <div
+              key={`${f}_${index}`}
+              style={{
+                border: `1px solid ${TOKENS.border}`,
+                borderRadius: 10,
+                padding: 10,
+                color: TOKENS.text,
+                background: TOKENS.surface,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              <span>{f}</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editFramework(index)}>
+                  Edit
+                </Button>
+                <Button tone="danger" style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => deleteFramework(index)}>
+                  Delete
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       </Card>
 
       <Card>
-        <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 10 }}>Startup Mistakes Checklist (30)</div>
+        <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 10 }}>
+          Startup Mistakes Checklist ({startupMistakeList.length})
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <Input
+            placeholder="Add startup mistake"
+            value={newMistakeText}
+            onChange={(e) => setNewMistakeText(e.target.value)}
+          />
+          <Button tone="primary" onClick={addStartupMistake}>
+            Add
+          </Button>
+        </div>
         <div style={{ display: "grid", gap: 6, maxHeight: 420, overflow: "auto", paddingRight: 4 }}>
-          {STARTUP_MISTAKES.map((mistake, idx) => (
-            <label key={mistake} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-              <input type="checkbox" checked={!!mistakeChecks[idx]} onChange={() => toggleMistake(idx)} />
-              <span style={{ color: TOKENS.text }}>{mistake}</span>
-            </label>
+          {startupMistakeList.map((mistake, idx) => (
+            <div
+              key={`${mistake}_${idx}`}
+              style={{
+                border: `1px solid ${TOKENS.border}`,
+                borderRadius: 8,
+                padding: 8,
+                background: TOKENS.surface,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                alignItems: "flex-start",
+              }}
+            >
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <input type="checkbox" checked={!!mistakeChecks[idx]} onChange={() => toggleMistake(idx)} />
+                <span style={{ color: TOKENS.text }}>{mistake}</span>
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editStartupMistake(idx)}>
+                  Edit
+                </Button>
+                <Button tone="danger" style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => deleteStartupMistake(idx)}>
+                  Delete
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       </Card>
 
       <Card>
         <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 10 }}>Daily Habit Tracker</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <Input
+            placeholder="Add habit"
+            value={newHabitText}
+            onChange={(e) => setNewHabitText(e.target.value)}
+          />
+          <Button tone="primary" onClick={addHabit}>
+            Add
+          </Button>
+        </div>
         <div style={{ display: "grid", gap: 8 }}>
-          {HABITS.map((habit) => (
-            <label key={habit} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" checked={!!habitByDate[todaysDate]?.[habit]} onChange={() => toggleHabit(habit)} />
-              <span style={{ color: TOKENS.text }}>{habit}</span>
-            </label>
+          {habitList.map((habit, index) => (
+            <div
+              key={`${habit}_${index}`}
+              style={{
+                border: `1px solid ${TOKENS.border}`,
+                borderRadius: 8,
+                padding: 8,
+                background: TOKENS.surface,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="checkbox" checked={!!habitByDate[todaysDate]?.[habit]} onChange={() => toggleHabit(habit)} />
+                <span style={{ color: TOKENS.text }}>{habit}</span>
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <Button style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => editHabit(index)}>
+                  Edit
+                </Button>
+                <Button tone="danger" style={{ padding: "4px 8px", fontSize: 12 }} onClick={() => deleteHabit(index)}>
+                  Delete
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       </Card>
