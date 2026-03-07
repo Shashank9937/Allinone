@@ -117,6 +117,84 @@ const PROBABILITY_FACTORS = [
   { key: "scalability", label: "Scalability", weight: 0.1 },
 ];
 
+const VC_SCALE_FACTORS = [
+  {
+    title: "1. Market Size (Most Important)",
+    detail:
+      "VC lens: can this market produce a $1B company? Rule: $100M company needs roughly $5B market; $1B company needs roughly $20B market.",
+  },
+  {
+    title: "2. Problem Severity",
+    detail:
+      "Great startups solve painful recurring expensive problems, not nice-to-have features. Teams should prove monetary impact and urgency.",
+  },
+  {
+    title: "3. Willingness to Pay",
+    detail:
+      "Strong signal when customers already spend budget or commit to buy. Weak signal when feedback is only 'interesting'.",
+  },
+  {
+    title: "4. Founder-Market Fit",
+    detail:
+      "VCs ask why this founder is uniquely positioned through domain expertise, insider access, network, or direct lived problem.",
+  },
+  {
+    title: "5. Distribution Advantage",
+    detail:
+      "Winning startups reach customers cheaply via networks, partnerships, communities, or built-in channels.",
+  },
+  {
+    title: "6. Scalability",
+    detail:
+      "Prefer software/platform models that scale without linear headcount growth; avoid labor-heavy execution traps.",
+  },
+  {
+    title: "7. Recurring Revenue",
+    detail:
+      "Recurring models (SaaS, usage, platform fees) compound and create predictable growth visibility.",
+  },
+  {
+    title: "8. Competitive Advantage (Moat)",
+    detail:
+      "Long-term defensibility requires data, network effects, switching costs, proprietary tech, or regulation barriers.",
+  },
+  {
+    title: "9. Speed of Iteration",
+    detail:
+      "Fast learning loops matter. Winning teams test, ship, and learn faster than peers.",
+  },
+  {
+    title: "10. Early Traction",
+    detail:
+      "Even modest traction matters: paying customers, active pilots, rising usage, and revenue momentum.",
+  },
+  {
+    title: "11. Market Timing",
+    detail:
+      "Right timing amplifies outcomes via regulation shifts, infrastructure readiness, and technology inflection points.",
+  },
+  {
+    title: "12. Expansion Potential",
+    detail:
+      "Best companies start narrow and expand into adjacent categories, compounding into a platform opportunity.",
+  },
+];
+
+const VC_WEIGHT_MODEL = [
+  { factor: "Market Size", weight: "20%" },
+  { factor: "Problem Severity", weight: "15%" },
+  { factor: "Willingness to Pay", weight: "15%" },
+  { factor: "Founder-Market Fit", weight: "10%" },
+  { factor: "Distribution", weight: "10%" },
+  { factor: "Scalability", weight: "10%" },
+  { factor: "Recurring Revenue", weight: "5%" },
+  { factor: "Competitive Advantage", weight: "5%" },
+  { factor: "Speed of Execution", weight: "5%" },
+  { factor: "Traction", weight: "3%" },
+  { factor: "Timing", weight: "1%" },
+  { factor: "Expansion Potential", weight: "1%" },
+];
+
 const MILESTONES = [1, 10, 50, 100, 500];
 
 const INITIAL_MRR_HISTORY = [
@@ -2581,6 +2659,71 @@ Execution Score: ${weeklyExecutionScore}
             </div>
           </div>
           {probabilityAiError ? <div style={{ marginTop: 8, color: TOKENS.red, fontSize: 13 }}>{probabilityAiError}</div> : null}
+        </Card>
+
+        <Card style={{ background: TOKENS.surface }}>
+          <div style={{ color: TOKENS.text, fontFamily: FONT_TITLE, fontWeight: 700, fontSize: 22 }}>VC Scale Probability Playbook</div>
+          <div style={{ color: TOKENS.muted, fontSize: 13, marginTop: 6 }}>
+            One-section reference for evaluating startup ideas before heavy execution.
+          </div>
+
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 10 }}>
+            <div style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 12, background: TOKENS.card, padding: 12 }}>
+              <div style={{ color: TOKENS.orange, fontWeight: 700, marginBottom: 6 }}>Market Size Rule of Thumb</div>
+              <div style={{ color: TOKENS.text, fontSize: 13, lineHeight: 1.45 }}>
+                $100M company usually needs at least a $5B market. $1B company usually needs at least a $20B market.
+                Even 2-5% share of a huge market can create large outcomes.
+              </div>
+              <div style={{ color: TOKENS.muted, fontSize: 12, marginTop: 8 }}>
+                Large India categories: logistics, manufacturing digitization, energy, agriculture supply chains, fintech infrastructure.
+              </div>
+            </div>
+            <div style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 12, background: "#2A1112", padding: 12 }}>
+              <div style={{ color: TOKENS.red, fontWeight: 700, marginBottom: 6 }}>Brutal Truth</div>
+              <div style={{ color: TOKENS.text, fontSize: 13, lineHeight: 1.45 }}>
+                Most ideas fail on market size. Perfect execution cannot turn a small market into a billion-dollar company.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+            {VC_SCALE_FACTORS.map((item) => (
+              <div key={item.title} style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, background: TOKENS.card }}>
+                <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 13 }}>{item.title}</div>
+                <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+            <div style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, background: TOKENS.card, padding: 10 }}>
+              <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>VC Mental Scoring Weights</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                {VC_WEIGHT_MODEL.map((row) => (
+                  <div key={row.factor} style={{ display: "flex", justifyContent: "space-between", color: TOKENS.text, fontSize: 13 }}>
+                    <span>{row.factor}</span>
+                    <span style={{ fontFamily: FONT_MONO }}>{row.weight}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, background: TOKENS.card, padding: 10 }}>
+              <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>How To Use This</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                {[
+                  "Is the market massive?",
+                  "Is the problem painful and expensive?",
+                  "Will customers pay immediately?",
+                  "Do you have unique founder advantage?",
+                  "Can this scale globally without linear cost growth?",
+                ].map((line) => (
+                  <div key={line} style={{ color: TOKENS.text, fontSize: 13 }}>
+                    • {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </Card>
 
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12 }}>
