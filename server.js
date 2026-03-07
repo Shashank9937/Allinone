@@ -76,6 +76,20 @@ function extractChatText(data) {
   return "";
 }
 
+function extractAnthropicText(data) {
+  if (!data) return "";
+  const content = data.content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (item?.type === "text") return item.text || "";
+      return "";
+    })
+    .join("\n")
+    .trim();
+}
+
 const server = createServer((req, res) => {
   const requestPath = (req.url || "/").split("?")[0] || "/";
 
@@ -123,6 +137,58 @@ const server = createServer((req, res) => {
 
         const data = await upstream.json();
         sendJson(res, 200, { content: extractChatText(data) });
+      } catch (err) {
+        sendJson(res, 500, { error: err.message || "Unexpected server error." });
+      }
+    })();
+    return;
+  }
+
+  if (req.method === "POST" && requestPath === "/api/anthropic") {
+    (async () => {
+      if (!process.env.ANTHROPIC_API_KEY) {
+        sendJson(res, 500, { error: "ANTHROPIC_API_KEY is not set on server." });
+        return;
+      }
+
+      try {
+        const body = await readJsonBody(req);
+        const prompt = String(body.prompt || "").trim();
+        const system =
+          String(body.system || "").trim() || "You are a pragmatic startup execution copilot.";
+        const model = String(body.model || "").trim() || "claude-3-5-sonnet-latest";
+        const temperature = typeof body.temperature === "number" ? body.temperature : 0.3;
+        const maxTokens = typeof body.max_tokens === "number" ? body.max_tokens : 1200;
+
+        if (!prompt) {
+          sendJson(res, 400, { error: "Prompt is required." });
+          return;
+        }
+
+        const upstream = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": process.env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: maxTokens,
+            temperature,
+            system,
+            messages: [{ role: "user", content: prompt }],
+          }),
+        });
+
+        if (!upstream.ok) {
+          const text = await upstream.text();
+          sendJson(res, upstream.status, { error: text || "Anthropic request failed." });
+          return;
+        }
+
+        const data = await upstream.json();
+        sendJson(res, 200, { content: extractAnthropicText(data) });
       } catch (err) {
         sendJson(res, 500, { error: err.message || "Unexpected server error." });
       }

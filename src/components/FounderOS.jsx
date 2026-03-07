@@ -12,6 +12,9 @@ import {
   FunnelChart,
   Funnel,
   LabelList,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import {
   LayoutDashboard,
@@ -37,6 +40,9 @@ import {
   Upload,
   CheckCheck,
   XCircle,
+  Target,
+  RefreshCw,
+  BrainCircuit,
 } from "lucide-react";
 
 const TOKENS = {
@@ -62,6 +68,7 @@ const FONT_MONO = "'JetBrains Mono', monospace";
 const MODULES = [
   { key: "Dashboard", icon: LayoutDashboard },
   { key: "Ideas Lab", icon: Lightbulb },
+  { key: "Startup Probability Engine", icon: Target },
   { key: "Validation", icon: FlaskConical },
   { key: "Customer CRM", icon: Users },
   { key: "Sales Pipeline", icon: Handshake },
@@ -98,6 +105,17 @@ const SALES_PROB = {
   Pilot: 0.75,
   Close: 1,
 };
+
+const PROBABILITY_FACTORS = [
+  { key: "marketSize", label: "Market Size", weight: 0.2 },
+  { key: "problemSeverity", label: "Problem Severity", weight: 0.15 },
+  { key: "willingnessToPay", label: "Willingness to Pay", weight: 0.15 },
+  { key: "competitionIntensity", label: "Competition Intensity", weight: 0.1 },
+  { key: "distributionAdvantage", label: "Distribution Advantage", weight: 0.1 },
+  { key: "founderInsight", label: "Founder Insight", weight: 0.1 },
+  { key: "recurringRevenuePotential", label: "Recurring Revenue Potential", weight: 0.1 },
+  { key: "scalability", label: "Scalability", weight: 0.1 },
+];
 
 const MILESTONES = [1, 10, 50, 100, 500];
 
@@ -608,6 +626,18 @@ function normalizeAiErrorMessage(errorText) {
   return raw || "AI request failed.";
 }
 
+function normalizeAnthropicErrorMessage(errorText) {
+  const raw = String(errorText || "");
+  const lower = raw.toLowerCase();
+  if (lower.includes("anthropic_api_key is not set")) {
+    return "ANTHROPIC_API_KEY is missing on server. Add it in Render environment variables.";
+  }
+  if (lower.includes("insufficient") || lower.includes("credit") || lower.includes("quota")) {
+    return "Anthropic quota or credits are exhausted. Update billing/credits and retry.";
+  }
+  return raw || "Anthropic request failed.";
+}
+
 async function callOpenAI({ prompt, system }) {
   const response = await fetch("/api/openai", {
     method: "POST",
@@ -627,6 +657,303 @@ async function callOpenAI({ prompt, system }) {
     throw new Error(normalizeAiErrorMessage(json.error));
   }
   return json.content || "";
+}
+
+async function callAnthropic({ prompt, system }) {
+  const response = await fetch("/api/anthropic", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-3-5-sonnet-latest",
+      temperature: 0.3,
+      max_tokens: 1200,
+      system,
+      prompt,
+    }),
+  });
+
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(normalizeAnthropicErrorMessage(json.error));
+  }
+  return json.content || "";
+}
+
+function clampScore(value, min = 0, max = 10) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
+function computeWeightedProbabilityScore(factors) {
+  return Math.round(
+    PROBABILITY_FACTORS.reduce((sum, factor) => {
+      return sum + (Number(factors[factor.key]) || 0) * factor.weight * 10;
+    }, 0)
+  );
+}
+
+function getRevenueTier(score) {
+  if (score <= 40) return "Low probability startup";
+  if (score <= 60) return "Moderate potential startup";
+  if (score <= 80) return "High potential startup";
+  return "Venture scale startup";
+}
+
+function getRevenueProbabilities(score) {
+  const s = Math.max(0, Math.min(100, Number(score) || 0));
+  return {
+    tenCr: Math.max(5, Math.min(99, Math.round(s * 1.15))),
+    hundredCr: Math.max(1, Math.min(95, Math.round((s - 20) * 1.25))),
+    fiveHundredCr: Math.max(0, Math.min(85, Math.round((s - 45) * 1.3))),
+  };
+}
+
+function getDecisionActions(score) {
+  if (score >= 81) {
+    return [
+      "Conduct 20 customer interviews in 14 days.",
+      "Build and ship MVP in 3 weeks.",
+      "Launch 3 paid pilots with explicit ROI targets.",
+    ];
+  }
+  if (score >= 61) {
+    return [
+      "Run 12 customer interviews with pricing tests.",
+      "Prototype core workflow and measure activation.",
+      "Secure 2 design partners before expanding scope.",
+    ];
+  }
+  if (score >= 41) {
+    return [
+      "Tighten ICP and narrow one painful use-case.",
+      "Run willingness-to-pay interviews before building.",
+      "Validate distribution channel with 50 targeted outreaches.",
+    ];
+  }
+  return [
+    "Reframe problem to a higher-urgency segment.",
+    "Rework monetization model with clear ROI proof.",
+    "Collect stronger evidence before MVP investment.",
+  ];
+}
+
+function parseMarketSizeCr(text) {
+  const normalized = String(text || "").replace(/,/g, "");
+  const match = normalized.match(/(\d+(?:\.\d+)?)\s*(?:cr|crore|crores)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function keywordHits(text, words) {
+  const hay = String(text || "").toLowerCase();
+  return words.reduce((count, word) => (hay.includes(word) ? count + 1 : count), 0);
+}
+
+function createIdeaSignature(idea) {
+  return [
+    idea.title,
+    idea.problem,
+    idea.customer,
+    idea.solution,
+    idea.marketSize,
+    idea.revenueModel,
+    idea.competition,
+    idea.mvpApproach,
+    idea.moat,
+    idea.competitiveAdvantage,
+    idea.indiaContext,
+  ]
+    .map((item) => String(item || "").trim())
+    .join("|");
+}
+
+function computeHeuristicFactorScores(idea) {
+  const marketCr = parseMarketSizeCr(idea.marketSize);
+  const marketSize =
+    marketCr >= 10000
+      ? 10
+      : marketCr >= 7000
+      ? 9
+      : marketCr >= 5000
+      ? 8
+      : marketCr >= 3000
+      ? 7
+      : marketCr >= 1500
+      ? 6
+      : 5;
+
+  const problemHitCount = keywordHits(idea.problem, [
+    "loss",
+    "delay",
+    "penalty",
+    "failure",
+    "default",
+    "urgent",
+    "outage",
+    "compliance",
+    "critical",
+  ]);
+  const problemSeverity = clampScore(4 + problemHitCount, 1, 10);
+
+  const wtpHits =
+    keywordHits(idea.revenueModel, ["subscription", "annual", "license", "usage", "transaction", "contract"]) +
+    keywordHits(idea.customer, ["enterprise", "operators", "manufacturers", "commercial", "b2b"]);
+  const willingnessToPay = clampScore(4 + Math.round(wtpHits / 2), 1, 10);
+
+  const competitionText = `${idea.competition || ""} ${idea.competitiveAdvantage || ""} ${idea.moat || ""}`;
+  let competitionIntensity = 6;
+  competitionIntensity -= keywordHits(competitionText, ["crowded", "saturated", "many competitors", "incumbent"]);
+  competitionIntensity += keywordHits(competitionText, ["network effect", "proprietary", "differentiated", "moat"]);
+  competitionIntensity = clampScore(competitionIntensity, 1, 10);
+
+  const distributionHits =
+    keywordHits(`${idea.customer} ${idea.indiaContext}`, [
+      "cluster",
+      "network",
+      "aggregator",
+      "partner",
+      "marketplace",
+      "existing",
+    ]) + keywordHits(idea.solution, ["integration", "workflow"]);
+  const distributionAdvantage = clampScore(4 + Math.round(distributionHits / 2), 1, 10);
+
+  const founderInsightHits = keywordHits(`${idea.indiaContext} ${idea.problem}`, [
+    "india",
+    "vernacular",
+    "gst",
+    "discom",
+    "mandi",
+    "tier-2",
+    "local",
+    "regulatory",
+  ]);
+  const founderInsight = clampScore(4 + Math.round(founderInsightHits / 2), 1, 10);
+
+  const recurringRevenuePotential = clampScore(
+    3 +
+      keywordHits(idea.revenueModel, ["subscription", "monthly", "annual", "platform fee", "saas", "monitoring"]) +
+      keywordHits(idea.solution, ["dashboard", "analytics"]),
+    1,
+    10
+  );
+
+  const scalability = clampScore(
+    3 +
+      keywordHits(`${idea.solution} ${idea.mvpApproach}`, [
+        "ai",
+        "automation",
+        "platform",
+        "dashboard",
+        "software",
+        "api",
+      ]) -
+      keywordHits(`${idea.solution} ${idea.mvpApproach}`, ["manual", "services only", "consulting only"]),
+    1,
+    10
+  );
+
+  return {
+    marketSize,
+    problemSeverity,
+    willingnessToPay,
+    competitionIntensity,
+    distributionAdvantage,
+    founderInsight,
+    recurringRevenuePotential,
+    scalability,
+  };
+}
+
+function buildProbabilityRecord({ idea, factors, reasoning, source, ideaSignature }) {
+  const totalScore = computeWeightedProbabilityScore(factors);
+  return {
+    ideaId: idea.id,
+    factors,
+    totalScore,
+    tier: getRevenueTier(totalScore),
+    probabilities: getRevenueProbabilities(totalScore),
+    reasoning:
+      reasoning ||
+      "Heuristic estimate based on market size, pain severity, monetization fit, distribution, and scalability signals.",
+    source: source || "heuristic",
+    ideaSignature: ideaSignature || createIdeaSignature(idea),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function extractJsonObject(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    // Keep trying with code fences / embedded JSON blocks.
+  }
+
+  const fenced = raw.match(/```json\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) {
+    try {
+      return JSON.parse(fenced[1]);
+    } catch (err) {
+      // fall through
+    }
+  }
+
+  const firstBrace = raw.indexOf("{");
+  const lastBrace = raw.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(raw.slice(firstBrace, lastBrace + 1));
+    } catch (err) {
+      return null;
+    }
+  }
+  return null;
+}
+
+function normalizeFactorScores(rawFactors, fallbackFactors) {
+  const source = rawFactors && typeof rawFactors === "object" ? rawFactors : {};
+  const findScore = (keys, fallback) => {
+    for (const key of keys) {
+      const value = source[key];
+      if (value !== undefined && value !== null && value !== "") {
+        return clampScore(Number(value), 0, 10);
+      }
+    }
+    return clampScore(fallback, 0, 10);
+  };
+
+  return {
+    marketSize: findScore(["marketSize", "market_size", "marketSizeScore"], fallbackFactors.marketSize),
+    problemSeverity: findScore(
+      ["problemSeverity", "problem_severity", "problemSeverityScore"],
+      fallbackFactors.problemSeverity
+    ),
+    willingnessToPay: findScore(
+      ["willingnessToPay", "willingness_to_pay", "willingnessToPayScore"],
+      fallbackFactors.willingnessToPay
+    ),
+    competitionIntensity: findScore(
+      ["competitionIntensity", "competition", "competition_intensity", "competitionScore"],
+      fallbackFactors.competitionIntensity
+    ),
+    distributionAdvantage: findScore(
+      ["distributionAdvantage", "distribution", "distribution_advantage", "distributionScore"],
+      fallbackFactors.distributionAdvantage
+    ),
+    founderInsight: findScore(
+      ["founderInsight", "founder_insight", "founderAdvantage", "founder_advantage"],
+      fallbackFactors.founderInsight
+    ),
+    recurringRevenuePotential: findScore(
+      ["recurringRevenuePotential", "recurring_revenue_potential", "revenuePotential", "revenue_potential"],
+      fallbackFactors.recurringRevenuePotential
+    ),
+    scalability: findScore(["scalability", "scalabilityScore"], fallbackFactors.scalability),
+  };
 }
 
 function Card({ children, style }) {
@@ -791,6 +1118,8 @@ function FounderOS() {
   const [ideaNotes, setIdeaNotes] = useLocalStorageState("fo_ideas_notes", []);
   const [shortlistedIdeaIds, setShortlistedIdeaIds] = useLocalStorageState("fo_ideas_shortlist", []);
   const [generatedIdeas, setGeneratedIdeas] = useLocalStorageState("fo_ideas_generated_ai", []);
+  const [probabilityByIdea, setProbabilityByIdea] = useLocalStorageState("fo_probability_scores", {});
+  const [probabilityOnlyHigh, setProbabilityOnlyHigh] = useLocalStorageState("fo_probability_only_high", false);
 
   const [validationItems, setValidationItems] = useLocalStorageState("fo_validation_items", []);
   const [interviewLogs, setInterviewLogs] = useLocalStorageState("fo_interview_logs", []);
@@ -825,6 +1154,8 @@ function FounderOS() {
   const [ideaPrompt, setIdeaPrompt] = useState("");
   const [ideaAiLoading, setIdeaAiLoading] = useState(false);
   const [ideaAiError, setIdeaAiError] = useState("");
+  const [probabilityAiLoadingIdeaId, setProbabilityAiLoadingIdeaId] = useState("");
+  const [probabilityAiError, setProbabilityAiError] = useState("");
 
   const [interviewAiInput, setInterviewAiInput] = useState("");
   const [interviewAiSummary, setInterviewAiSummary] = useState("");
@@ -1101,6 +1432,61 @@ function FounderOS() {
     });
   }, [allIdeas, ideaSectorFilter, ideaDifficultyFilter, ideaQuery]);
 
+  useEffect(() => {
+    setProbabilityByIdea((prev) => {
+      const next = { ...prev };
+      const liveIds = new Set();
+      let changed = false;
+
+      allIdeas.forEach((idea) => {
+        liveIds.add(idea.id);
+        const ideaSignature = createIdeaSignature(idea);
+        const current = prev[idea.id];
+        if (!current || current.ideaSignature !== ideaSignature) {
+          const factors = computeHeuristicFactorScores(idea);
+          next[idea.id] = buildProbabilityRecord({
+            idea,
+            factors,
+            source: "heuristic",
+            ideaSignature,
+            reasoning:
+              "Auto-recalculated using weighted framework due to new idea data or updated idea fields.",
+          });
+          changed = true;
+        }
+      });
+
+      Object.keys(next).forEach((ideaId) => {
+        if (!liveIds.has(ideaId)) {
+          delete next[ideaId];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [allIdeas, setProbabilityByIdea]);
+
+  const probabilityRows = useMemo(() => {
+    return allIdeas
+      .map((idea) => {
+        const fallback = buildProbabilityRecord({
+          idea,
+          factors: computeHeuristicFactorScores(idea),
+          source: "heuristic",
+          ideaSignature: createIdeaSignature(idea),
+        });
+        const probability = probabilityByIdea[idea.id] || fallback;
+        return { idea, probability };
+      })
+      .sort((a, b) => b.probability.totalScore - a.probability.totalScore);
+  }, [allIdeas, probabilityByIdea]);
+
+  const filteredProbabilityRows = useMemo(() => {
+    if (!probabilityOnlyHigh) return probabilityRows;
+    return probabilityRows.filter((row) => row.probability.totalScore >= 70);
+  }, [probabilityRows, probabilityOnlyHigh]);
+
   const validationByStage = useMemo(() => {
     const map = {};
     VALIDATION_STAGES.forEach((stage) => {
@@ -1362,6 +1748,106 @@ Return only JSON.
       showNotice(message, "error");
     } finally {
       setIdeaAiLoading(false);
+    }
+  };
+
+  const recalculateProbabilityHeuristics = () => {
+    setProbabilityByIdea((prev) => {
+      const next = { ...prev };
+      allIdeas.forEach((idea) => {
+        next[idea.id] = buildProbabilityRecord({
+          idea,
+          factors: computeHeuristicFactorScores(idea),
+          source: "heuristic",
+          ideaSignature: createIdeaSignature(idea),
+          reasoning: "Recalculated using FounderOS weighted heuristic model.",
+        });
+      });
+      return next;
+    });
+    showNotice("Startup Probability Engine recalculated from current idea data.", "success");
+  };
+
+  const evaluateIdeaProbabilityWithAI = async (idea) => {
+    setProbabilityAiError("");
+    setProbabilityAiLoadingIdeaId(idea.id);
+    try {
+      const prompt = `
+Evaluate the startup idea below and score it across market size, problem severity, willingness to pay, competition intensity, distribution advantage, founder insight, recurring revenue potential, and scalability.
+Return strict JSON:
+{
+  "scores": {
+    "marketSize": 0-10,
+    "problemSeverity": 0-10,
+    "willingnessToPay": 0-10,
+    "competitionIntensity": 0-10,
+    "distributionAdvantage": 0-10,
+    "founderInsight": 0-10,
+    "recurringRevenuePotential": 0-10,
+    "scalability": 0-10
+  },
+  "reasoning": "short explanation",
+  "recommendedActions": ["action1","action2","action3"]
+}
+Idea Data:
+${JSON.stringify(
+  {
+    title: idea.title,
+    problem: idea.problem,
+    customer: idea.customer,
+    solution: idea.solution,
+    marketSize: idea.marketSize,
+    revenueModel: idea.revenueModel,
+    competition: idea.competition || "",
+    mvpApproach: idea.mvpApproach,
+    moat: idea.moat || idea.competitiveAdvantage || "",
+    indiaContext: idea.indiaContext || "",
+  },
+  null,
+  2
+)}
+      `;
+
+      const responseText = await callAnthropic({
+        system:
+          "You are an investor-grade startup evaluator. Be critical, realistic, and output strict JSON only.",
+        prompt,
+      });
+
+      const parsed = extractJsonObject(responseText);
+      if (!parsed) {
+        throw new Error("AI response was not valid JSON. Please retry.");
+      }
+
+      const baseline = computeHeuristicFactorScores(idea);
+      const factors = normalizeFactorScores(parsed.scores || parsed.factors || parsed, baseline);
+      const reasoning =
+        parsed.reasoning ||
+        parsed.explanation ||
+        "AI evaluated this idea across market, monetization, competition, and scalability factors.";
+
+      const recommendedActions = Array.isArray(parsed.recommendedActions) ? parsed.recommendedActions : [];
+      const finalReasoning =
+        recommendedActions.length > 0 ? `${reasoning}\nActions: ${recommendedActions.join(" | ")}` : reasoning;
+
+      setProbabilityByIdea((prev) => ({
+        ...prev,
+        [idea.id]: buildProbabilityRecord({
+          idea,
+          factors,
+          source: "anthropic",
+          ideaSignature: createIdeaSignature(idea),
+          reasoning: finalReasoning,
+        }),
+      }));
+
+      showNotice(`AI probability evaluation updated for "${idea.title}".`, "success");
+    } catch (err) {
+      const message = err.message || "AI probability evaluation failed.";
+      setProbabilityAiError(message);
+      showNotice(message, "error");
+    } finally {
+      setProbabilityAiLoadingIdeaId("");
     }
   };
 
@@ -2031,6 +2517,259 @@ Execution Score: ${weeklyExecutionScore}
             </div>
           </Card>
         ) : null}
+      </div>
+    );
+  };
+
+  const renderStartupProbabilityEngine = () => {
+    const leaderboard = filteredProbabilityRows;
+    const topScoresData = leaderboard.slice(0, 10).map((row, index) => ({
+      name: row.idea.title.length > 20 ? `${row.idea.title.slice(0, 20)}...` : row.idea.title,
+      score: row.probability.totalScore,
+      rank: index + 1,
+    }));
+
+    const tierBuckets = [
+      { name: "Low", value: probabilityRows.filter((row) => row.probability.totalScore <= 40).length, color: TOKENS.red },
+      {
+        name: "Moderate",
+        value: probabilityRows.filter(
+          (row) => row.probability.totalScore > 40 && row.probability.totalScore <= 60
+        ).length,
+        color: TOKENS.yellow,
+      },
+      {
+        name: "High",
+        value: probabilityRows.filter(
+          (row) => row.probability.totalScore > 60 && row.probability.totalScore <= 80
+        ).length,
+        color: TOKENS.blue,
+      },
+      { name: "Venture", value: probabilityRows.filter((row) => row.probability.totalScore > 80).length, color: TOKENS.green },
+    ];
+
+    const potentialDistributionData = probabilityRows.slice(0, 7).map((row) => ({
+      name: row.idea.title.length > 14 ? `${row.idea.title.slice(0, 14)}...` : row.idea.title,
+      tenCr: row.probability.probabilities.tenCr,
+      hundredCr: row.probability.probabilities.hundredCr,
+      fiveHundredCr: row.probability.probabilities.fiveHundredCr,
+    }));
+
+    return (
+      <div style={{ display: "grid", gap: 16 }}>
+        <Card style={{ background: TOKENS.surface }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <div style={{ color: TOKENS.text, fontWeight: 700 }}>Startup Probability Engine</div>
+              <div style={{ color: TOKENS.muted, fontSize: 13, marginTop: 4 }}>
+                Scores ideas from Ideas Lab to estimate probability of reaching ₹10Cr, ₹100Cr, and ₹500Cr outcomes.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ color: TOKENS.text, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={!!probabilityOnlyHigh}
+                  onChange={(e) => setProbabilityOnlyHigh(e.target.checked)}
+                />
+                Only show score above 70
+              </label>
+              <Button onClick={recalculateProbabilityHeuristics}>
+                <RefreshCw size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                Recalculate
+              </Button>
+            </div>
+          </div>
+          {probabilityAiError ? <div style={{ marginTop: 8, color: TOKENS.red, fontSize: 13 }}>{probabilityAiError}</div> : null}
+        </Card>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12 }}>
+          <StatCard label="Ideas Evaluated" value={String(probabilityRows.length)} />
+          <StatCard
+            label="Venture Scale (81+)"
+            value={String(probabilityRows.filter((row) => row.probability.totalScore >= 81).length)}
+            tone="green"
+          />
+          <StatCard
+            label="High Potential (61+)"
+            value={String(probabilityRows.filter((row) => row.probability.totalScore >= 61).length)}
+            tone="blue"
+          />
+          <StatCard
+            label="Avg Score"
+            value={
+              probabilityRows.length
+                ? String(
+                    Math.round(
+                      probabilityRows.reduce((sum, row) => sum + row.probability.totalScore, 0) / probabilityRows.length
+                    )
+                  )
+                : "0"
+            }
+            tone="orange"
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 16 }}>
+          <Card>
+            <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>Idea Score Leaderboard</div>
+            <div style={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer>
+                <BarChart data={topScoresData}>
+                  <CartesianGrid stroke={TOKENS.border} />
+                  <XAxis dataKey="name" stroke={TOKENS.muted} hide={isMobile} />
+                  <YAxis stroke={TOKENS.muted} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ background: TOKENS.surface, border: `1px solid ${TOKENS.border}` }} />
+                  <Bar dataKey="score" fill={TOKENS.orange} radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          <Card>
+            <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>Market Potential Distribution</div>
+            <div style={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={tierBuckets} dataKey="value" nameKey="name" outerRadius={95} label>
+                    {tierBuckets.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: TOKENS.surface, border: `1px solid ${TOKENS.border}` }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+
+        <Card>
+          <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>Top Ideas Revenue Outcome Probability</div>
+          <div style={{ width: "100%", height: 280 }}>
+            <ResponsiveContainer>
+              <BarChart data={potentialDistributionData}>
+                <CartesianGrid stroke={TOKENS.border} />
+                <XAxis dataKey="name" stroke={TOKENS.muted} hide={isMobile} />
+                <YAxis stroke={TOKENS.muted} domain={[0, 100]} />
+                <Tooltip contentStyle={{ background: TOKENS.surface, border: `1px solid ${TOKENS.border}` }} />
+                <Bar dataKey="tenCr" fill={TOKENS.blue} />
+                <Bar dataKey="hundredCr" fill={TOKENS.orange} />
+                <Bar dataKey="fiveHundredCr" fill={TOKENS.green} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {leaderboard.map((row, index) => {
+            const { idea, probability } = row;
+            const actions = getDecisionActions(probability.totalScore);
+            return (
+              <Card key={idea.id}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ color: TOKENS.text, fontFamily: FONT_TITLE, fontWeight: 700, fontSize: 20 }}>
+                      #{index + 1} {idea.title}
+                    </div>
+                    <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>
+                      {idea.sector} | {idea.difficulty} | Source: {probability.source}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        borderRadius: 10,
+                        border: `1px solid ${TOKENS.border}`,
+                        background: TOKENS.surface,
+                        padding: "8px 10px",
+                        color: scoreColor(probability.totalScore),
+                        fontFamily: FONT_MONO,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Score {probability.totalScore}/100
+                    </div>
+                    <Button
+                      tone="primary"
+                      onClick={() => evaluateIdeaProbabilityWithAI(idea)}
+                      disabled={probabilityAiLoadingIdeaId === idea.id}
+                    >
+                      <BrainCircuit size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                      {probabilityAiLoadingIdeaId === idea.id ? "Evaluating..." : "AI Evaluate"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 10, color: TOKENS.text, fontSize: 13 }}>
+                  <strong>Tier:</strong> {probability.tier}
+                </div>
+
+                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 8 }}>
+                  {PROBABILITY_FACTORS.map((factor) => (
+                    <div key={factor.key} style={{ background: TOKENS.surface, border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 8 }}>
+                      <div style={{ color: TOKENS.muted, fontSize: 12 }}>{factor.label}</div>
+                      <div style={{ color: TOKENS.text, fontFamily: FONT_MONO, marginTop: 4 }}>
+                        {Number(probability.factors[factor.key] || 0).toFixed(1)}/10
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                  {[
+                    { label: "₹10Cr Probability", key: "tenCr", color: TOKENS.blue },
+                    { label: "₹100Cr Probability", key: "hundredCr", color: TOKENS.orange },
+                    { label: "₹500Cr Probability", key: "fiveHundredCr", color: TOKENS.green },
+                  ].map((item) => (
+                    <div key={item.key}>
+                      <div style={{ display: "flex", justifyContent: "space-between", color: TOKENS.muted, fontSize: 12 }}>
+                        <span>{item.label}</span>
+                        <span>{probability.probabilities[item.key]}%</span>
+                      </div>
+                      <div style={{ marginTop: 4, height: 7, borderRadius: 8, background: TOKENS.border, overflow: "hidden" }}>
+                        <div
+                          style={{
+                            width: `${probability.probabilities[item.key]}%`,
+                            height: "100%",
+                            background: item.color,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 10,
+                    background: TOKENS.surface,
+                    border: `1px solid ${TOKENS.border}`,
+                    borderRadius: 10,
+                    padding: 10,
+                  }}
+                >
+                  <div style={{ color: TOKENS.muted, fontSize: 12 }}>Reasoning</div>
+                  <div style={{ color: TOKENS.text, marginTop: 4, whiteSpace: "pre-wrap", fontSize: 13 }}>
+                    {probability.reasoning}
+                  </div>
+                </div>
+
+                {probability.totalScore >= 61 ? (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ color: TOKENS.green, fontWeight: 700, marginBottom: 6 }}>Recommended Actions</div>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {actions.map((action) => (
+                        <div key={action} style={{ color: TOKENS.text, fontSize: 13 }}>
+                          • {action}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -2838,6 +3577,7 @@ Execution Score: ${weeklyExecutionScore}
   const renderModule = () => {
     if (activeModule === "Dashboard") return renderDashboard();
     if (activeModule === "Ideas Lab") return renderIdeasLab();
+    if (activeModule === "Startup Probability Engine") return renderStartupProbabilityEngine();
     if (activeModule === "Validation") return renderValidation();
     if (activeModule === "Customer CRM") return renderCustomerCRM();
     if (activeModule === "Sales Pipeline") return renderSalesPipeline();
