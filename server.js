@@ -18,6 +18,11 @@ const MIME = {
   ".ico": "image/x-icon",
 };
 
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(payload));
+}
+
 function sendFile(res, filePath) {
   const ext = extname(filePath).toLowerCase();
   const type = MIME[ext] || "application/octet-stream";
@@ -32,8 +37,99 @@ function safePathFromUrl(urlPath) {
   return candidate;
 }
 
+async function readJsonBody(req, maxBytes = 1_000_000) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    let raw = "";
+    let total = 0;
+
+    req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        rejectPromise(new Error("Payload too large"));
+        req.destroy();
+        return;
+      }
+      raw += chunk.toString("utf8");
+    });
+
+    req.on("end", () => {
+      try {
+        resolvePromise(raw ? JSON.parse(raw) : {});
+      } catch (err) {
+        rejectPromise(new Error("Invalid JSON body"));
+      }
+    });
+
+    req.on("error", (err) => {
+      rejectPromise(err);
+    });
+  });
+}
+
+function extractChatText(data) {
+  if (!data) return "";
+  const message = data.choices?.[0]?.message?.content;
+  if (typeof message === "string") return message;
+  if (Array.isArray(message)) {
+    return message.map((item) => item?.text || "").join("\n");
+  }
+  return "";
+}
+
 const server = createServer((req, res) => {
   const requestPath = (req.url || "/").split("?")[0] || "/";
+
+  if (req.method === "POST" && requestPath === "/api/openai") {
+    (async () => {
+      if (!process.env.OPENAI_API_KEY) {
+        sendJson(res, 500, { error: "OPENAI_API_KEY is not set on server." });
+        return;
+      }
+
+      try {
+        const body = await readJsonBody(req);
+        const prompt = String(body.prompt || "").trim();
+        const system =
+          String(body.system || "").trim() || "You are a pragmatic startup execution copilot.";
+        const model = String(body.model || "").trim() || "gpt-4o-mini";
+        const temperature = typeof body.temperature === "number" ? body.temperature : 0.7;
+
+        if (!prompt) {
+          sendJson(res, 400, { error: "Prompt is required." });
+          return;
+        }
+
+        const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            temperature,
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: prompt },
+            ],
+          }),
+        });
+
+        if (!upstream.ok) {
+          const text = await upstream.text();
+          sendJson(res, upstream.status, { error: text || "OpenAI request failed." });
+          return;
+        }
+
+        const data = await upstream.json();
+        sendJson(res, 200, { content: extractChatText(data) });
+      } catch (err) {
+        sendJson(res, 500, { error: err.message || "Unexpected server error." });
+      }
+    })();
+    return;
+  }
+
   const isRoot = requestPath === "/";
   const filePath = isRoot ? resolve(DIST_DIR, "index.html") : safePathFromUrl(requestPath);
 

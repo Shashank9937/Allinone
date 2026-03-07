@@ -597,40 +597,25 @@ function hasNoZeroActivity(dayActivity) {
   );
 }
 
-function extractChatText(data) {
-  if (!data) return "";
-  const message = data.choices?.[0]?.message?.content;
-  if (typeof message === "string") return message;
-  if (Array.isArray(message)) {
-    return message.map((m) => m?.text || "").join("\n");
-  }
-  return "";
-}
-
-async function callOpenAI({ apiKey, prompt, system }) {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+async function callOpenAI({ prompt, system }) {
+  const response = await fetch("/api/openai", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
       temperature: 0.7,
-      messages: [
-        { role: "system", content: system || "You are a pragmatic startup execution copilot." },
-        { role: "user", content: prompt },
-      ],
+      system,
+      prompt,
     }),
   });
 
+  const json = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(body || "OpenAI request failed");
+    throw new Error(json.error || "AI request failed");
   }
-
-  const json = await response.json();
-  return extractChatText(json);
+  return json.content || "";
 }
 
 function Card({ children, style }) {
@@ -783,7 +768,6 @@ function StatCard({ label, value, tone }) {
 
 function FounderOS() {
   const [activeModule, setActiveModule] = useLocalStorageState("fo_active_module", "Dashboard");
-  const [openAiKey, setOpenAiKey] = useLocalStorageState("fo_openai_key", "");
   const [dailyChecklistByDate, setDailyChecklistByDate] = useLocalStorageState("fo_daily_checklist", {});
   const [dailyActivity, setDailyActivity] = useLocalStorageState("fo_daily_activity", {});
   const [mrrHistory, setMrrHistory] = useLocalStorageState("fo_mrr_history", INITIAL_MRR_HISTORY);
@@ -1253,10 +1237,6 @@ function FounderOS() {
   };
 
   const runIdeaGenerator = async () => {
-    if (!openAiKey.trim()) {
-      setIdeaAiError("Add OpenAI API key in header first.");
-      return;
-    }
     setIdeaAiLoading(true);
     setIdeaAiError("");
     try {
@@ -1268,7 +1248,6 @@ Context from founder: ${ideaPrompt || "26-year-old founder targeting high-growth
 Return only JSON.
       `;
       const result = await callOpenAI({
-        apiKey: openAiKey.trim(),
         prompt,
         system: "You are a startup strategist focused on practical execution in India.",
       });
@@ -1325,10 +1304,6 @@ Return only JSON.
   };
 
   const runInterviewAnalysis = async () => {
-    if (!openAiKey.trim()) {
-      setInterviewAiError("Add OpenAI API key in header first.");
-      return;
-    }
     if (!interviewAiInput.trim()) {
       setInterviewAiError("Paste interview notes first.");
       return;
@@ -1337,7 +1312,6 @@ Return only JSON.
     setInterviewAiError("");
     try {
       const result = await callOpenAI({
-        apiKey: openAiKey.trim(),
         system: "You summarize customer interviews for startup validation decisions.",
         prompt: `
 Analyze these startup interview notes and output:
@@ -1385,10 +1359,6 @@ ${interviewAiInput}
   };
 
   const runOutreachGenerator = async () => {
-    if (!openAiKey.trim()) {
-      setOutreachError("Add OpenAI API key in header first.");
-      return;
-    }
     if (!outreachInput.trim()) {
       setOutreachError("Add outreach context first.");
       return;
@@ -1397,7 +1367,6 @@ ${interviewAiInput}
     setOutreachError("");
     try {
       const result = await callOpenAI({
-        apiKey: openAiKey.trim(),
         system: "You write concise B2B outreach messages with clear CTA.",
         prompt: `
 Create 3 outreach variants (email + LinkedIn DM) for this context:
@@ -1436,15 +1405,10 @@ Include a strong CTA and one line value proposition each.
   };
 
   const runInvestorUpdateGenerator = async () => {
-    if (!openAiKey.trim()) {
-      setInvestorUpdateError("Add OpenAI API key in header first.");
-      return;
-    }
     setInvestorUpdateLoading(true);
     setInvestorUpdateError("");
     try {
       const result = await callOpenAI({
-        apiKey: openAiKey.trim(),
         system: "You write crisp investor updates with traction and asks.",
         prompt: `
 Create a weekly investor update email for an Indian founder.
@@ -2784,13 +2748,19 @@ Execution Score: ${weeklyExecutionScore}
                 subtitle="Idea discovery -> validation -> MVP -> customers -> revenue -> scale"
               />
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <Input
-                  type="password"
-                  placeholder="OpenAI API Key"
-                  value={openAiKey}
-                  onChange={(e) => setOpenAiKey(e.target.value)}
-                  style={{ width: isMobile ? "100%" : 260 }}
-                />
+                <div
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    border: `1px solid ${TOKENS.border}`,
+                    background: TOKENS.card,
+                    color: TOKENS.blue,
+                    fontFamily: FONT_MONO,
+                    fontWeight: 700,
+                  }}
+                >
+                  AI via Server Key
+                </div>
                 <div
                   style={{
                     padding: "8px 10px",
