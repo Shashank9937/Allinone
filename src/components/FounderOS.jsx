@@ -195,6 +195,58 @@ const VC_WEIGHT_MODEL = [
   { factor: "Expansion Potential", weight: "1%" },
 ];
 
+const SCALE_PATTERN_PLAYBOOK = [
+  {
+    title: "1. Digitize an Offline Industry",
+    why:
+      "Works when market size is huge, tech penetration is low, and software can unlock major efficiency gains.",
+    examples: "Stripe, Toast, Flexport",
+    indiaFit: "Logistics, manufacturing, agriculture supply chain, construction, energy operations",
+  },
+  {
+    title: "2. Infrastructure Layer",
+    why:
+      "Build core rails other businesses depend on. Deep integration, recurring revenue, and switching costs create durable scale.",
+    examples: "AWS, Twilio, Snowflake",
+    indiaFit: "Payments rails, compliance infrastructure, industrial data platforms",
+  },
+  {
+    title: "3. Marketplace Liquidity",
+    why:
+      "Connect two sides of a market and win by building liquidity. Once both sides are active, flywheel strength grows fast.",
+    examples: "Uber, Airbnb, DoorDash",
+    indiaFit: "B2B procurement, logistics capacity, agri and energy exchanges",
+  },
+  {
+    title: "4. Developer Platform",
+    why:
+      "Developer tools spread bottom-up with strong community-led adoption and expansion inside teams.",
+    examples: "GitHub, Vercel, Datadog",
+    indiaFit: "API tooling, observability, workflow SDKs for Indian SaaS builders",
+  },
+  {
+    title: "5. Workflow Automation",
+    why:
+      "Automating multi-step enterprise workflows reduces labor, errors, and cycle time, driving clear ROI.",
+    examples: "UiPath, ServiceNow, Monday.com",
+    indiaFit: "Factory ops, field-force operations, finance workflow automation",
+  },
+  {
+    title: "6. Regulation Creates Opportunity",
+    why:
+      "Policy shifts can create demand quickly for compliance and infrastructure tooling.",
+    examples: "Plaid, Stripe, Gusto",
+    indiaFit: "GST compliance, energy markets, carbon credits, financial data access",
+  },
+  {
+    title: "7. Aggregation Layer",
+    why:
+      "Become system-of-record for fragmented markets by aggregating suppliers, demand, and data over time.",
+    examples: "Zomato, Redfin, Shopify",
+    indiaFit: "Fragmented SME and industrial clusters with poor digital coordination",
+  },
+];
+
 const MILESTONES = [1, 10, 50, 100, 500];
 
 const INITIAL_MRR_HISTORY = [
@@ -2721,6 +2773,66 @@ Execution Score: ${weeklyExecutionScore}
                     • {line}
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card style={{ background: TOKENS.surface }}>
+          <div style={{ color: TOKENS.text, fontFamily: FONT_TITLE, fontWeight: 700, fontSize: 22 }}>Proven Scale Pattern Playbook</div>
+          <div style={{ color: TOKENS.muted, fontSize: 13, marginTop: 6 }}>
+            Use these pattern filters daily so ideas are not random. Prefer ideas that match one or more proven scale patterns.
+          </div>
+
+          <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+            {SCALE_PATTERN_PLAYBOOK.map((item) => (
+              <div key={item.title} style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, padding: 10, background: TOKENS.card }}>
+                <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 13 }}>{item.title}</div>
+                <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>
+                  <strong style={{ color: TOKENS.text }}>Why it works:</strong> {item.why}
+                </div>
+                <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>
+                  <strong style={{ color: TOKENS.text }}>Examples:</strong> {item.examples}
+                </div>
+                <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>
+                  <strong style={{ color: TOKENS.text }}>India fit:</strong> {item.indiaFit}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+            <div style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, background: TOKENS.card, padding: 10 }}>
+              <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>Daily Pattern Check</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                {[
+                  "Does this idea digitize an offline industry?",
+                  "Does it build infrastructure or a platform layer?",
+                  "Can it create marketplace liquidity?",
+                  "Can it become a developer or workflow platform?",
+                  "Does regulation create tailwind for adoption?",
+                  "Can it aggregate a fragmented ecosystem?",
+                ].map((line) => (
+                  <div key={line} style={{ color: TOKENS.text, fontSize: 13 }}>
+                    • {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ border: `1px solid ${TOKENS.border}`, borderRadius: 10, background: TOKENS.card, padding: 10 }}>
+              <div style={{ color: TOKENS.text, fontWeight: 700, marginBottom: 8 }}>Idea Quality Direction</div>
+              <div style={{ color: TOKENS.muted, fontSize: 13 }}>
+                <strong style={{ color: TOKENS.red }}>Weak direction:</strong> random consumer app, niche lifestyle tool.
+              </div>
+              <div style={{ color: TOKENS.muted, fontSize: 13, marginTop: 6 }}>
+                <strong style={{ color: TOKENS.green }}>Stronger direction:</strong> factory workflow software, logistics automation platform, energy analytics SaaS.
+              </div>
+              <div style={{ marginTop: 10, border: `1px solid ${TOKENS.border}`, borderRadius: 8, padding: 8, background: TOKENS.surface }}>
+                <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 13 }}>Final Insight</div>
+                <div style={{ color: TOKENS.muted, marginTop: 4, fontSize: 13 }}>
+                  Most billion-dollar startups combine two or more patterns. Stripe = infrastructure + developer platform.
+                  Uber = marketplace + aggregation.
+                </div>
               </div>
             </div>
           </div>
