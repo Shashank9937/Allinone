@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,9 +12,6 @@ import {
   FunnelChart,
   Funnel,
   LabelList,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import {
   LayoutDashboard,
@@ -35,8 +32,11 @@ import {
   Clock3,
   Phone,
   Send,
-  Target,
   ChevronRight,
+  Download,
+  Upload,
+  CheckCheck,
+  XCircle,
 } from "lucide-react";
 
 const TOKENS = {
@@ -597,6 +597,17 @@ function hasNoZeroActivity(dayActivity) {
   );
 }
 
+function normalizeAiErrorMessage(errorText) {
+  const raw = String(errorText || "");
+  if (raw.toLowerCase().includes("insufficient_quota")) {
+    return "OpenAI quota exceeded. Update billing/credits and redeploy with a valid OPENAI_API_KEY.";
+  }
+  if (raw.toLowerCase().includes("openai_api_key is not set")) {
+    return "OPENAI_API_KEY is missing on server. Add it in Render environment variables.";
+  }
+  return raw || "AI request failed.";
+}
+
 async function callOpenAI({ prompt, system }) {
   const response = await fetch("/api/openai", {
     method: "POST",
@@ -613,7 +624,7 @@ async function callOpenAI({ prompt, system }) {
 
   const json = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(json.error || "AI request failed");
+    throw new Error(normalizeAiErrorMessage(json.error));
   }
   return json.content || "";
 }
@@ -626,6 +637,8 @@ function Card({ children, style }) {
         border: `1px solid ${TOKENS.border}`,
         borderRadius: 16,
         padding: 16,
+        boxShadow: "0 8px 28px rgba(0,0,0,0.28)",
+        backdropFilter: "blur(6px)",
         ...style,
       }}
     >
@@ -723,13 +736,14 @@ function Button({ children, tone = "default", style, ...props }) {
     <button
       {...props}
       style={{
-        cursor: "pointer",
+        cursor: props.disabled ? "not-allowed" : "pointer",
         fontFamily: FONT_BODY,
         fontWeight: 600,
         fontSize: 14,
         borderRadius: 10,
         padding: "10px 14px",
         transition: "all 180ms ease",
+        opacity: props.disabled ? 0.55 : 1,
         ...toneStyles[tone],
         ...style,
       }}
@@ -886,14 +900,26 @@ function FounderOS() {
   const [newPriority, setNewPriority] = useState("");
   const [bookFilter, setBookFilter] = useState("All");
   const [newPodcast, setNewPodcast] = useState({ title: "", host: "", status: "Planned", notes: "" });
+  const [notice, setNotice] = useState(null);
+  const backupFileRef = useRef(null);
 
   const todaysDate = todayKey();
+
+  const showNotice = (text, tone = "info") => {
+    setNotice({ text, tone, id: Date.now() });
+  };
 
   useEffect(() => {
     const onResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     const fontId = "founder-os-fonts";
@@ -921,6 +947,54 @@ function FounderOS() {
     }, 1000);
     return () => clearInterval(timer);
   }, [pomodoroRunning, setPomodoroCycles]);
+
+  const exportBackup = () => {
+    try {
+      const payload = {};
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i);
+        if (!key || !key.startsWith("fo_")) continue;
+        const value = window.localStorage.getItem(key);
+        payload[key] = value ? JSON.parse(value) : null;
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `founderos-backup-${todaysDate}.json`;
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+      showNotice("Backup exported successfully.", "success");
+    } catch (err) {
+      showNotice("Backup export failed. Please try again.", "error");
+    }
+  };
+
+  const triggerImportPicker = () => {
+    backupFileRef.current?.click();
+  };
+
+  const importBackup = async (event) => {
+    try {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Invalid backup format");
+      }
+      Object.keys(parsed).forEach((key) => {
+        if (!key.startsWith("fo_")) return;
+        window.localStorage.setItem(key, JSON.stringify(parsed[key]));
+      });
+      showNotice("Backup imported. Reloading...", "success");
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      showNotice("Backup import failed. Use a valid FounderOS backup JSON.", "error");
+    } finally {
+      event.target.value = "";
+    }
+  };
 
   const updateTodayActivity = (updates) => {
     setDailyActivity((prev) => {
@@ -1189,41 +1263,61 @@ function FounderOS() {
   const addMRREntry = () => {
     const m = mrrInputMonth.trim();
     const v = Number(mrrInputValue);
-    if (!m || !v) return;
+    if (!m || !v) {
+      showNotice("Enter both month and MRR value to add a data point.", "error");
+      return;
+    }
     setMrrHistory((prev) => [...prev, { month: m, mrr: v / 100000 }]);
     setMrrInputMonth("");
     setMrrInputValue("");
+    showNotice(`MRR entry added for ${m}.`, "success");
   };
 
   const addIdeaNote = () => {
     const text = newIdeaNote.trim();
-    if (!text) return;
+    if (!text) {
+      showNotice("Write an idea before adding it.", "error");
+      return;
+    }
     setIdeaNotes((prev) => [...prev, { id: `note_${Date.now()}`, text, date: todaysDate }]);
     setNewIdeaNote("");
     updateTodayActivity({ ideasLogged: 1, ideasGenerated: 1 });
+    showNotice("Idea logged.", "success");
   };
 
   const addIndustry = () => {
     const value = newIndustry.trim();
-    if (!value) return;
+    if (!value) {
+      showNotice("Enter an industry name first.", "error");
+      return;
+    }
     setIndustriesLog((prev) => [...prev, { id: `ind_${Date.now()}`, value, date: todaysDate }]);
     setNewIndustry("");
     updateTodayActivity({ industriesResearched: 1 });
+    showNotice("Industry research logged.", "success");
   };
 
   const addPainPoint = () => {
     const value = newPainPoint.trim();
-    if (!value) return;
+    if (!value) {
+      showNotice("Enter a pain point before adding.", "error");
+      return;
+    }
     setPainPointsLog((prev) => [...prev, { id: `pain_${Date.now()}`, value, date: todaysDate }]);
     setNewPainPoint("");
     updateTodayActivity({ painPointsLogged: 1 });
+    showNotice("Pain point logged.", "success");
   };
 
   const toggleShortlist = (ideaId) => {
     setShortlistedIdeaIds((prev) => {
       const exists = prev.includes(ideaId);
-      if (exists) return prev.filter((id) => id !== ideaId);
+      if (exists) {
+        showNotice("Idea removed from shortlist.", "info");
+        return prev.filter((id) => id !== ideaId);
+      }
       updateTodayActivity({ ideasShortlisted: 1, ideasLogged: 1 });
+      showNotice("Idea shortlisted.", "success");
       return [...prev, ideaId];
     });
   };
@@ -1231,7 +1325,10 @@ function FounderOS() {
   const toggleCompare = (ideaId) => {
     setIdeaCompareIds((prev) => {
       if (prev.includes(ideaId)) return prev.filter((id) => id !== ideaId);
-      if (prev.length >= 3) return [...prev.slice(1), ideaId];
+      if (prev.length >= 3) {
+        showNotice("Comparison supports max 3 ideas. Oldest replaced.", "info");
+        return [...prev.slice(1), ideaId];
+      }
       return [...prev, ideaId];
     });
   };
@@ -1255,18 +1352,24 @@ Return only JSON.
       if (Array.isArray(parsed)) {
         setGeneratedIdeas((prev) => [...parsed, ...prev].slice(0, 40));
         updateTodayActivity({ ideasGenerated: parsed.length, ideasLogged: parsed.length });
+        showNotice(`Generated ${parsed.length} AI ideas.`, "success");
       } else {
         throw new Error("Model did not return a valid JSON array.");
       }
     } catch (err) {
-      setIdeaAiError(err.message || "Idea generation failed.");
+      const message = err.message || "Idea generation failed.";
+      setIdeaAiError(message);
+      showNotice(message, "error");
     } finally {
       setIdeaAiLoading(false);
     }
   };
 
   const addInterview = () => {
-    if (!newInterview.company.trim() || !newInterview.contact.trim()) return;
+    if (!newInterview.company.trim() || !newInterview.contact.trim()) {
+      showNotice("Company and contact are required for interview logs.", "error");
+      return;
+    }
     const entry = { ...newInterview, id: `int_${Date.now()}` };
     setInterviewLogs((prev) => [...prev, entry]);
 
@@ -1286,6 +1389,7 @@ Return only JSON.
     }
 
     updateTodayActivity({ customerConversations: 1, interviewsConducted: 1 });
+    showNotice("Interview logged successfully.", "success");
     setNewInterview({
       company: "",
       contact: "",
@@ -1306,6 +1410,7 @@ Return only JSON.
   const runInterviewAnalysis = async () => {
     if (!interviewAiInput.trim()) {
       setInterviewAiError("Paste interview notes first.");
+      showNotice("Paste interview notes first.", "error");
       return;
     }
     setInterviewAiLoading(true);
@@ -1325,15 +1430,21 @@ ${interviewAiInput}
         `,
       });
       setInterviewAiSummary(result);
+      showNotice("Interview analysis generated.", "success");
     } catch (err) {
-      setInterviewAiError(err.message || "Interview analysis failed.");
+      const message = err.message || "Interview analysis failed.";
+      setInterviewAiError(message);
+      showNotice(message, "error");
     } finally {
       setInterviewAiLoading(false);
     }
   };
 
   const addContact = () => {
-    if (!newContact.name.trim() || !newContact.company.trim()) return;
+    if (!newContact.name.trim() || !newContact.company.trim()) {
+      showNotice("Name and company are required to add a contact.", "error");
+      return;
+    }
     const id = `c_${Date.now()}`;
     setCrmContacts((prev) => [...prev, { ...newContact, id }]);
     setNewContact({
@@ -1346,6 +1457,7 @@ ${interviewAiInput}
       lastContactDate: todaysDate,
     });
     updateTodayActivity({ contactsAdded: 1 });
+    showNotice("Contact added to CRM.", "success");
   };
 
   const updateContactField = (id, key, value) => {
@@ -1353,14 +1465,19 @@ ${interviewAiInput}
   };
 
   const addCallLog = () => {
-    if (!newCallLog.contactId || !newCallLog.summary.trim()) return;
+    if (!newCallLog.contactId || !newCallLog.summary.trim()) {
+      showNotice("Select a contact and add call notes.", "error");
+      return;
+    }
     setCrmCallLogs((prev) => [...prev, { id: `call_${Date.now()}`, ...newCallLog }]);
     setNewCallLog({ contactId: "", date: todaysDate, summary: "" });
+    showNotice("Call log saved.", "success");
   };
 
   const runOutreachGenerator = async () => {
     if (!outreachInput.trim()) {
       setOutreachError("Add outreach context first.");
+      showNotice("Add outreach context first.", "error");
       return;
     }
     setOutreachLoading(true);
@@ -1377,17 +1494,24 @@ Include a strong CTA and one line value proposition each.
       });
       setOutreachOutput(result);
       updateTodayActivity({ outreachMessages: 3 });
+      showNotice("Outreach messages generated.", "success");
     } catch (err) {
-      setOutreachError(err.message || "Outreach generation failed.");
+      const message = err.message || "Outreach generation failed.";
+      setOutreachError(message);
+      showNotice(message, "error");
     } finally {
       setOutreachLoading(false);
     }
   };
 
   const addDeal = () => {
-    if (!newDeal.name.trim() || !newDeal.company.trim()) return;
+    if (!newDeal.name.trim() || !newDeal.company.trim()) {
+      showNotice("Deal name and company are required.", "error");
+      return;
+    }
     setDeals((prev) => [...prev, { ...newDeal, id: `deal_${Date.now()}`, value: Number(newDeal.value) || 0 }]);
     setNewDeal({ name: "", company: "", stage: "Prospect", value: "" });
+    showNotice("Deal added to pipeline.", "success");
   };
 
   const updateDeal = (id, key, value) => {
@@ -1423,8 +1547,11 @@ Execution Score: ${weeklyExecutionScore}
         `,
       });
       setInvestorUpdateOutput(result);
+      showNotice("Investor update generated.", "success");
     } catch (err) {
-      setInvestorUpdateError(err.message || "Investor update generation failed.");
+      const message = err.message || "Investor update generation failed.";
+      setInvestorUpdateError(message);
+      showNotice(message, "error");
     } finally {
       setInvestorUpdateLoading(false);
     }
@@ -1441,12 +1568,16 @@ Execution Score: ${weeklyExecutionScore}
 
   const addPriority = () => {
     const text = newPriority.trim();
-    if (!text) return;
+    if (!text) {
+      showNotice("Write a priority before adding.", "error");
+      return;
+    }
     setDailyPrioritiesByDate((prev) => ({
       ...prev,
       [todaysDate]: [...(prev[todaysDate] || []), { id: `p_${Date.now()}`, text, done: false }],
     }));
     setNewPriority("");
+    showNotice("Priority added.", "success");
   };
 
   const togglePriority = (id) => {
@@ -1470,9 +1601,13 @@ Execution Score: ${weeklyExecutionScore}
   const saveQuickLog = () => {
     const conv = Number(dailyLogInput.customerConversations) || 0;
     const out = Number(dailyLogInput.outreachMessages) || 0;
-    if (!conv && !out) return;
+    if (!conv && !out) {
+      showNotice("Enter conversations or outreach count to save.", "error");
+      return;
+    }
     updateTodayActivity({ customerConversations: conv, outreachMessages: out });
     setDailyLogInput({ customerConversations: "", outreachMessages: "" });
+    showNotice("Execution activity logged.", "success");
   };
 
   const progressToGoal = Math.min((opportunityCounter.total / 100) * 100, 100);
@@ -1498,9 +1633,28 @@ Execution Score: ${weeklyExecutionScore}
   };
 
   const addPodcast = () => {
-    if (!newPodcast.title.trim()) return;
+    if (!newPodcast.title.trim()) {
+      showNotice("Podcast title is required.", "error");
+      return;
+    }
     setPodcasts((prev) => [...prev, { id: `pod_${Date.now()}`, ...newPodcast }]);
     setNewPodcast({ title: "", host: "", status: "Planned", notes: "" });
+    showNotice("Podcast added.", "success");
+  };
+
+  const runDiscoveryKit = () => {
+    setActiveModule("Ideas Lab");
+    showNotice("Discovery Kit activated: move to Ideas Lab and log 3 pain points.", "info");
+  };
+
+  const runValidationKit = () => {
+    setActiveModule("Validation");
+    showNotice("Validation Kit activated: log one interview now.", "info");
+  };
+
+  const runRevenueKit = () => {
+    setActiveModule("Sales Pipeline");
+    showNotice("Revenue Kit activated: add one deal and generate outreach.", "info");
   };
 
   const toggleMistake = (index) => {
@@ -1668,6 +1822,24 @@ Execution Score: ${weeklyExecutionScore}
           </div>
         </Card>
       </div>
+
+      <Card style={{ background: TOKENS.surface }}>
+        <div style={{ color: TOKENS.text, fontFamily: FONT_BODY, fontWeight: 700, marginBottom: 10 }}>Instant Action Kits</div>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
+          <Button onClick={runDiscoveryKit}>
+            <Lightbulb size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+            Discovery Kit
+          </Button>
+          <Button onClick={runValidationKit}>
+            <FlaskConical size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+            Validation Kit
+          </Button>
+          <Button onClick={runRevenueKit}>
+            <TrendingUp size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+            Revenue Kit
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 
@@ -1707,8 +1879,12 @@ Execution Score: ${weeklyExecutionScore}
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <Input value={newIndustry} onChange={(e) => setNewIndustry(e.target.value)} placeholder="e.g. Pharma logistics" />
               <Button onClick={addIndustry}>
-                <Plus size={14} />
+                <Plus size={14} style={{ marginRight: 4, verticalAlign: "middle" }} />
+                Add
               </Button>
+            </div>
+            <div style={{ marginTop: 8, color: TOKENS.muted, fontSize: 12 }}>
+              Recent: {industriesLog.slice(-2).map((item) => item.value).join(" • ") || "No entries yet"}
             </div>
           </Card>
           <Card>
@@ -1720,8 +1896,12 @@ Execution Score: ${weeklyExecutionScore}
                 placeholder="e.g. 12% spoilage in cold chain"
               />
               <Button onClick={addPainPoint}>
-                <Plus size={14} />
+                <Plus size={14} style={{ marginRight: 4, verticalAlign: "middle" }} />
+                Add
               </Button>
+            </div>
+            <div style={{ marginTop: 8, color: TOKENS.muted, fontSize: 12 }}>
+              Recent: {painPointsLog.slice(-2).map((item) => item.value).join(" • ") || "No entries yet"}
             </div>
           </Card>
           <Card>
@@ -1729,8 +1909,12 @@ Execution Score: ${weeklyExecutionScore}
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <Input value={newIdeaNote} onChange={(e) => setNewIdeaNote(e.target.value)} placeholder="Idea headline" />
               <Button onClick={addIdeaNote}>
-                <Plus size={14} />
+                <Plus size={14} style={{ marginRight: 4, verticalAlign: "middle" }} />
+                Add
               </Button>
+            </div>
+            <div style={{ marginTop: 8, color: TOKENS.muted, fontSize: 12 }}>
+              Recent: {ideaNotes.slice(-2).map((item) => item.text).join(" • ") || "No entries yet"}
             </div>
           </Card>
         </div>
@@ -2675,6 +2859,44 @@ Execution Score: ${weeklyExecutionScore}
         fontFamily: FONT_BODY,
       }}
     >
+      {notice ? (
+        <div
+          style={{
+            position: "fixed",
+            right: 14,
+            top: 14,
+            zIndex: 1000,
+            background: notice.tone === "error" ? "#341414" : notice.tone === "success" ? "#0F2B1E" : TOKENS.surface,
+            border: `1px solid ${
+              notice.tone === "error" ? TOKENS.red : notice.tone === "success" ? TOKENS.green : TOKENS.border
+            }`,
+            borderRadius: 12,
+            padding: "10px 12px",
+            minWidth: isMobile ? 240 : 340,
+            maxWidth: 460,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.35)",
+          }}
+        >
+          {notice.tone === "error" ? (
+            <XCircle size={16} color={TOKENS.red} />
+          ) : (
+            <CheckCheck size={16} color={notice.tone === "success" ? TOKENS.green : TOKENS.blue} />
+          )}
+          <span style={{ color: TOKENS.text, fontSize: 13 }}>{notice.text}</span>
+        </div>
+      ) : null}
+
+      <input
+        ref={backupFileRef}
+        type="file"
+        accept="application/json"
+        onChange={importBackup}
+        style={{ display: "none" }}
+      />
+
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "260px minmax(0, 1fr)" }}>
         <aside
           style={{
@@ -2761,6 +2983,14 @@ Execution Score: ${weeklyExecutionScore}
                 >
                   AI via Server Key
                 </div>
+                <Button onClick={exportBackup}>
+                  <Download size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                  Export
+                </Button>
+                <Button onClick={triggerImportPicker}>
+                  <Upload size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                  Import
+                </Button>
                 <div
                   style={{
                     padding: "8px 10px",
