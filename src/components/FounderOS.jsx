@@ -78,6 +78,7 @@ const MODULES = [
   { key: "Weekly Metrics", icon: BarChart3 },
   { key: "Learning Hub", icon: BookOpen },
   { key: "Mindset", icon: Brain },
+  { key: "AI Agents", icon: BrainCircuit },
 ];
 
 const CHECKLIST_ITEMS = [
@@ -333,6 +334,142 @@ const HABITS = [
   "Customer calls",
   "Read and reflect",
   "Plan tomorrow",
+];
+
+const AI_ROADMAP = [
+  {
+    phase: "Phase 1: Foundations & Fundamentals",
+    description: "Understand the core concepts of LLMs, Prompt Engineering, and AI APIs.",
+    topics: ["Prompt Engineering mastery (Chain of Thought, Few-Shot)", "Understanding Context Windows & Tokens", "Basic API Integrations (OpenAI, Anthropic)"],
+  },
+  {
+    phase: "Phase 2: RAG & Knowledge Integration",
+    description: "Connect AI models to your own data to ground responses and reduce hallucinations.",
+    topics: ["Vector Databases (Pinecone, Weaviate)", "Embeddings & Semantic Search", "Document Loaders & Chunking Strategies"],
+  },
+  {
+    phase: "Phase 3: Tool Use & Function Calling",
+    description: "Give AI the ability to take actions, interact with APIs, and execute code.",
+    topics: ["OpenAI Function Calling", "API chaining & workflow automation", "Building custom tools for specific enterprise tasks"],
+  },
+  {
+    phase: "Phase 4: Agentic Frameworks",
+    description: "Develop autonomous agents that plan, reason, and execute multi-step tasks.",
+    topics: ["LangChain & LlamaIndex", "AutoGPT & BabyAGI concepts", "Agent architectures (ReAct, Plan-and-Solve)"],
+  },
+  {
+    phase: "Phase 5: Multi-Agent Systems",
+    description: "Deploy swarms of specialized agents collaborating to solve complex objectives.",
+    topics: ["AutoGen & CrewAI frameworks", "Agent roles, delegation, and inter-agent communication", "Evaluation and monitoring of agentic loops"],
+  }
+];
+
+const LEVERAGE_AI = [
+  {
+    title: "1. Automate Tedious Admin Tasks",
+    detail: "Use AI to classify support tickets, summarize meeting notes, and extract data from invoices, freeing up your team for high-leverage work."
+  },
+  {
+    title: "2. Personalize Customer Outreach",
+    detail: "Generate hyper-personalized cold emails and marketing copy at scale using data scraped from LinkedIn and company websites."
+  },
+  {
+    title: "3. Rapid Prototyping & Coding",
+    detail: "Use AI pair programmers (like GitHub Copilot or cursor) to write boilerplate code, debug errors, and ship MVP features 10x faster."
+  },
+  {
+    title: "4. Enhanced Decision Making",
+    detail: "Feed your financial and operational data into an LLM to identify trends, forecast anomalies, and uncover cost-saving opportunities."
+  },
+  {
+    title: "5. 24/7 Customer Support",
+    detail: "Deploy custom RAG-powered chatbots trained on your internal documentation to resolve common customer queries instantly and accurately."
+  }
+];
+
+const AI_ENGINES_DATA = [
+  {
+    id: "eng_1",
+    name: "Customer Acquisition Engine",
+    objective: "Generate predictable inbound + outbound demand without humans.",
+    label: "Replaces Marketing Team",
+    kpis: ["Cost per lead → Near zero", "Meetings booked → 5–10/day", "CAC → Declining monthly"],
+    agents: [
+      { id: "agt_1", name: "Lead Mining Agent", description: "Sources from IndiaMART, Maps, GST, LinkedIn, Tenders. Scrapes, filters, enriches, scores, and pushes to CRM." },
+      { id: "agt_2", name: "Personalization Agent", description: "Reads website/reviews, identifies pain signals, generates hyper-personalized pitch, selects channel." },
+      { id: "agt_3", name: "Campaign Orchestrator", description: "Sends outreach sequences, tracks open/reply, auto follow-ups, escalates hot leads to founder." }
+    ]
+  },
+  {
+    id: "eng_2",
+    name: "Sales Conversion Engine",
+    objective: "Close deals without heavy human involvement.",
+    label: "Replaces Sales Team",
+    kpis: ["Close rate > 25%", "Sales cycle < 14 days", "Average contract value increasing"],
+    agents: [
+      { id: "agt_4", name: "Qualification Agent", description: "Analyzes replies, extracts budget/authority/urgency, scores leads, disqualifies bad leads." },
+      { id: "agt_5", name: "Proposal Agent", description: "Generates ROI calculation, pricing proposal, implementation timeline, and contract draft." },
+      { id: "agt_6", name: "Negotiation Assistant", description: "Simulates counter-offers, recommends discount boundaries, risk analysis. Approves final deal." }
+    ]
+  },
+  {
+    id: "eng_3",
+    name: "Product Delivery Engine",
+    objective: "Ship continuously without large dev team.",
+    label: "Replaces Engineering + Ops",
+    kpis: ["Deployment frequency weekly", "Uptime > 99.9%", "Dev cost minimal"],
+    agents: [
+      { id: "agt_7", name: "Feature Builder Agent", description: "Translates customer feedback to specs, generates code, tests automatically, deploys, monitors errors." },
+      { id: "agt_8", name: "Infrastructure Agent", description: "Auto-scales servers, optimizes costs, monitors uptime, security patching." },
+      { id: "agt_9", name: "Automation Agent", description: "Builds workflows between tools, eliminates manual steps, auto-alerts failures." }
+    ]
+  },
+  {
+    id: "eng_4",
+    name: "Customer Success Engine",
+    objective: "Retention and expansion without humans.",
+    label: "Replaces Support Team",
+    kpis: ["Churn < 5%", "Expansion revenue > 30%", "Support resolution < 5 mins"],
+    agents: [
+      { id: "agt_10", name: "Onboarding Agent", description: "Auto-creates accounts, sends tutorials, schedules setup flows, verifies activation." },
+      { id: "agt_11", name: "Health Monitoring Agent", description: "Tracks usage, detects drop-offs, triggers intervention, upsell opportunities." },
+      { id: "agt_12", name: "Support Agent", description: "Handles tickets, routes edge cases to founder, builds knowledge base automatically." }
+    ]
+  },
+  {
+    id: "eng_5",
+    name: "Finance + Compliance Engine",
+    objective: "Zero admin burden.",
+    label: "Replaces Accountant",
+    kpis: [],
+    agents: [
+      { id: "agt_13", name: "Billing Agent", description: "Auto invoice, payment reminders, reconciliation, GST tagging." },
+      { id: "agt_14", name: "Compliance Agent", description: "Tracks filings, collects documents, generates reports, audit prep." },
+      { id: "agt_15", name: "Cash Flow Agent", description: "Forecasts runway, optimizes pricing, flags risk." }
+    ]
+  },
+  {
+    id: "eng_6",
+    name: "Data Moat Engine",
+    objective: "Build irreplaceable data advantage.",
+    label: "Your Defensibility",
+    kpis: [],
+    agents: [
+      { id: "agt_16", name: "Intelligence Agent", description: "Aggregates ops benchmarks, pricing sensitivity, compliance cycles, performance metrics, generates insights." },
+      { id: "agt_17", name: "Product Intelligence Agent", description: "Recommends new features, market expansion ideas, cross-sell signals." }
+    ]
+  },
+  {
+    id: "eng_7",
+    name: "Capital + Expansion Engine",
+    objective: "Scale aggressively.",
+    label: "Replaces Strategy Team",
+    kpis: [],
+    agents: [
+      { id: "agt_18", name: "Market Expansion Agent", description: "Identifies adjacent markets, simulates TAM, localization planning." },
+      { id: "agt_19", name: "Fundraising Agent", description: "Prepares metrics, deck generation, investor targeting, narrative optimization." }
+    ]
+  }
 ];
 
 const IDEAS = [
@@ -905,14 +1042,14 @@ function computeHeuristicFactorScores(idea) {
     marketCr >= 10000
       ? 10
       : marketCr >= 7000
-      ? 9
-      : marketCr >= 5000
-      ? 8
-      : marketCr >= 3000
-      ? 7
-      : marketCr >= 1500
-      ? 6
-      : 5;
+        ? 9
+        : marketCr >= 5000
+          ? 8
+          : marketCr >= 3000
+            ? 7
+            : marketCr >= 1500
+              ? 6
+              : 5;
 
   const problemHitCount = keywordHits(idea.problem, [
     "loss",
@@ -963,23 +1100,23 @@ function computeHeuristicFactorScores(idea) {
 
   const recurringRevenuePotential = clampScore(
     3 +
-      keywordHits(idea.revenueModel, ["subscription", "monthly", "annual", "platform fee", "saas", "monitoring"]) +
-      keywordHits(idea.solution, ["dashboard", "analytics"]),
+    keywordHits(idea.revenueModel, ["subscription", "monthly", "annual", "platform fee", "saas", "monitoring"]) +
+    keywordHits(idea.solution, ["dashboard", "analytics"]),
     1,
     10
   );
 
   const scalability = clampScore(
     3 +
-      keywordHits(`${idea.solution} ${idea.mvpApproach}`, [
-        "ai",
-        "automation",
-        "platform",
-        "dashboard",
-        "software",
-        "api",
-      ]) -
-      keywordHits(`${idea.solution} ${idea.mvpApproach}`, ["manual", "services only", "consulting only"]),
+    keywordHits(`${idea.solution} ${idea.mvpApproach}`, [
+      "ai",
+      "automation",
+      "platform",
+      "dashboard",
+      "software",
+      "api",
+    ]) -
+    keywordHits(`${idea.solution} ${idea.mvpApproach}`, ["manual", "services only", "consulting only"]),
     1,
     10
   );
@@ -1276,6 +1413,9 @@ function FounderOS() {
   const [bookLibrary, setBookLibrary] = useLocalStorageState("fo_book_library", BOOKS);
   const [bookState, setBookState] = useLocalStorageState("fo_books_state", {});
   const [podcasts, setPodcasts] = useLocalStorageState("fo_podcasts", []);
+
+  const [aiEngineProgress, setAiEngineProgress] = useLocalStorageState("fo_ai_engine_progress", {});
+  const [aiEngineNotes, setAiEngineNotes] = useLocalStorageState("fo_ai_engine_notes", {});
   const [frameworkList, setFrameworkList] = useLocalStorageState("fo_framework_list", FRAMEWORKS);
   const [startupMistakeList, setStartupMistakeList] = useLocalStorageState("fo_mistake_list", STARTUP_MISTAKES);
   const [habitList, setHabitList] = useLocalStorageState("fo_habit_list", HABITS);
@@ -2046,17 +2186,17 @@ function FounderOS() {
       prev.map((idea) =>
         idea.id === ideaId
           ? {
-              ...idea,
-              title,
-              problem,
-              customer,
-              solution,
-              marketSize,
-              revenueModel,
-              mvpApproach,
-              competitiveAdvantage,
-              indiaContext,
-            }
+            ...idea,
+            title,
+            problem,
+            customer,
+            solution,
+            marketSize,
+            revenueModel,
+            mvpApproach,
+            competitiveAdvantage,
+            indiaContext,
+          }
           : idea
       )
     );
@@ -2198,21 +2338,21 @@ Return strict JSON:
 }
 Idea Data:
 ${JSON.stringify(
-  {
-    title: idea.title,
-    problem: idea.problem,
-    customer: idea.customer,
-    solution: idea.solution,
-    marketSize: idea.marketSize,
-    revenueModel: idea.revenueModel,
-    competition: idea.competition || "",
-    mvpApproach: idea.mvpApproach,
-    moat: idea.moat || idea.competitiveAdvantage || "",
-    indiaContext: idea.indiaContext || "",
-  },
-  null,
-  2
-)}
+        {
+          title: idea.title,
+          problem: idea.problem,
+          customer: idea.customer,
+          solution: idea.solution,
+          marketSize: idea.marketSize,
+          revenueModel: idea.revenueModel,
+          competition: idea.competition || "",
+          mvpApproach: idea.mvpApproach,
+          moat: idea.moat || idea.competitiveAdvantage || "",
+          indiaContext: idea.indiaContext || "",
+        },
+        null,
+        2
+      )}
       `;
 
       const responseText = await callAnthropic({
@@ -2951,8 +3091,8 @@ Execution Score: ${weeklyExecutionScore}
   const averageUrgency =
     validationItems.length > 0
       ? (
-          validationItems.reduce((sum, item) => sum + (Number(item.urgency) || 0), 0) / validationItems.length
-        ).toFixed(1)
+        validationItems.reduce((sum, item) => sum + (Number(item.urgency) || 0), 0) / validationItems.length
+      ).toFixed(1)
       : "0.0";
 
   const problemRealPct =
@@ -3818,10 +3958,10 @@ Execution Score: ${weeklyExecutionScore}
             value={
               probabilityRows.length
                 ? String(
-                    Math.round(
-                      probabilityRows.reduce((sum, row) => sum + row.probability.totalScore, 0) / probabilityRows.length
-                    )
+                  Math.round(
+                    probabilityRows.reduce((sum, row) => sum + row.probability.totalScore, 0) / probabilityRows.length
                   )
+                )
                 : "0"
             }
             tone="orange"
@@ -5067,6 +5207,197 @@ Execution Score: ${weeklyExecutionScore}
     </div>
   );
 
+  const renderAIAgents = () => (
+    <div style={{ display: "grid", gap: 16 }}>
+      <Card>
+        <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 18, marginBottom: 12 }}>
+          Learning Roadmap for AI Agents
+        </div>
+        <div style={{ color: TOKENS.muted, fontSize: 13, marginBottom: 20 }}>
+          Follow this structured path to move from basic prompting to building sophisticated autonomous agents.
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {AI_ROADMAP.map((item, i) => (
+            <div
+              key={i}
+              style={{
+                background: TOKENS.surface,
+                padding: 16,
+                borderRadius: 8,
+                border: `1px solid ${TOKENS.border}`,
+              }}
+            >
+              <div style={{ color: TOKENS.green, fontWeight: 700, marginBottom: 6 }}>{item.phase}</div>
+              <div style={{ color: TOKENS.text, fontSize: 14, marginBottom: 10 }}>{item.description}</div>
+              <ul style={{ margin: 0, paddingLeft: 20, color: TOKENS.muted, fontSize: 13 }}>
+                {item.topics.map((topic, j) => (
+                  <li key={j} style={{ marginBottom: 4 }}>{topic}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 18, marginBottom: 12 }}>
+          Agentic System Architecture (7 Engines)
+        </div>
+        <div style={{ color: TOKENS.muted, fontSize: 13, marginBottom: 20 }}>
+          Scale to ₹1,000+ Cr by replacing traditional headcount with specialized agentic engines. Track your progress below.
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {AI_ENGINES_DATA.map((engine) => {
+            const completed = engine.agents.filter((a) => aiEngineProgress[a.id]).length;
+            const isFinished = completed === engine.agents.length;
+
+            return (
+              <div
+                key={engine.id}
+                style={{
+                  background: TOKENS.surface,
+                  padding: 16,
+                  borderRadius: 8,
+                  border: `1px solid ${isFinished ? TOKENS.green : TOKENS.border}`,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: TOKENS.orange, fontWeight: 700, fontSize: 16 }}>{engine.name}</span>
+                      <span style={{ background: TOKENS.orangeDim, color: TOKENS.orange, fontSize: 11, padding: "2px 6px", borderRadius: 4 }}>
+                        {engine.label}
+                      </span>
+                    </div>
+                    <div style={{ color: TOKENS.text, fontSize: 13, marginTop: 4 }}>
+                      <span style={{ fontWeight: 700 }}>Obj:</span> {engine.objective}
+                    </div>
+                  </div>
+                  <div style={{ color: isFinished ? TOKENS.green : TOKENS.muted, fontSize: 13, fontWeight: 700 }}>
+                    {completed} / {engine.agents.length} Agents
+                  </div>
+                </div>
+
+                {engine.kpis && engine.kpis.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, marginTop: 8 }}>
+                    {engine.kpis.map((kpi, kIdx) => (
+                      <span key={kIdx} style={{ fontSize: 11, color: TOKENS.muted, border: `1px solid ${TOKENS.border}`, padding: "2px 8px", borderRadius: 10 }}>
+                        {kpi}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                  {engine.agents.map((agent) => (
+                    <label key={agent.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", background: TOKENS.bg, padding: "8px 12px", borderRadius: 6, border: `1px solid ${aiEngineProgress[agent.id] ? TOKENS.green : TOKENS.border}` }}>
+                      <input
+                        type="checkbox"
+                        style={{ marginTop: 2, accentColor: TOKENS.green }}
+                        checked={!!aiEngineProgress[agent.id]}
+                        onChange={() => setAiEngineProgress(prev => ({ ...prev, [agent.id]: !prev[agent.id] }))}
+                      />
+                      <div>
+                        <div style={{ color: aiEngineProgress[agent.id] ? TOKENS.green : TOKENS.blue, fontWeight: 700, fontSize: 14 }}>
+                          {agent.name}
+                        </div>
+                        <div style={{ color: TOKENS.muted, fontSize: 12 }}>
+                          {agent.description}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <textarea
+                    placeholder="Notes, stack context, or agent tracking for this engine..."
+                    value={aiEngineNotes[engine.id] || ""}
+                    onChange={(e) => setAiEngineNotes(prev => ({ ...prev, [engine.id]: e.target.value }))}
+                    style={{
+                      width: "100%",
+                      minHeight: 60,
+                      background: TOKENS.bg,
+                      border: `1px solid ${TOKENS.border}`,
+                      color: TOKENS.text,
+                      borderRadius: 6,
+                      padding: "8px 12px",
+                      fontSize: 13,
+                      fontFamily: FONT_BODY,
+                      resize: "vertical"
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 18, marginBottom: 12 }}>
+          Why You Can Win (Compounding Edge)
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
+          <div style={{ background: TOKENS.surface, padding: 16, borderRadius: 8, border: `1px solid ${TOKENS.border}` }}>
+            <div style={{ color: TOKENS.orange, fontWeight: 700, marginBottom: 8 }}>The 1,000 Cr Equation</div>
+            <ul style={{ color: TOKENS.muted, fontSize: 13, margin: 0, paddingLeft: 20 }}>
+              <li style={{ marginBottom: 4 }}><strong>ARR Target:</strong> ₹1,000 Cr</li>
+              <li style={{ marginBottom: 4 }}><strong>ARPA:</strong> ₹5L/year/customer</li>
+              <li style={{ marginBottom: 4 }}><strong>Customers:</strong> 20,000 businesses</li>
+              <li>Agents enable scale without massive headcount explosion.</li>
+            </ul>
+          </div>
+          <div style={{ background: TOKENS.surface, padding: 16, borderRadius: 8, border: `1px solid ${TOKENS.border}` }}>
+            <div style={{ color: TOKENS.blue, fontWeight: 700, marginBottom: 8 }}>Your Unfair Advantage</div>
+            <ul style={{ color: TOKENS.muted, fontSize: 13, margin: 0, paddingLeft: 20 }}>
+              <li style={{ marginBottom: 4 }}>Industrial access & Operational credibility</li>
+              <li style={{ marginBottom: 4 }}>Carbon + energy domain exposure</li>
+              <li style={{ marginBottom: 4 }}>Pre-existing distribution networks</li>
+              <li>Execution discipline — AI turns this into a compounding weapon.</li>
+            </ul>
+          </div>
+          <div style={{ background: TOKENS.surface, padding: 16, borderRadius: 8, border: `1px solid ${TOKENS.border}`, gridColumn: "1 / -1" }}>
+            <div style={{ color: TOKENS.green, fontWeight: 700, marginBottom: 8 }}>Tech Stack Matrix</div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {[
+                { label: "Agents", value: "OpenAI, LangChain" },
+                { label: "Automation", value: "n8n" },
+                { label: "CRM", value: "HubSpot" },
+                { label: "Data", value: "Supabase" },
+                { label: "Infra", value: "AWS" },
+                { label: "Payments", value: "Razorpay" },
+                { label: "Messaging", value: "WhatsApp API" }
+              ].map(stack => (
+                <div key={stack.label} style={{ display: "flex", alignItems: "center", gap: 6, background: TOKENS.bg, padding: "4px 8px", borderRadius: 4, border: `1px solid ${TOKENS.border}` }}>
+                  <span style={{ color: TOKENS.muted, fontSize: 11, fontWeight: 700 }}>{stack.label}:</span>
+                  <span style={{ color: TOKENS.text, fontSize: 12 }}>{stack.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: TOKENS.surface, padding: 16, borderRadius: 8, border: `1px solid ${TOKENS.border}`, gridColumn: "1 / -1" }}>
+            <div style={{ color: TOKENS.purple, fontWeight: 700, marginBottom: 8 }}>Daily Execution Algorithm</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
+              {["Morning", "Midday", "Afternoon", "Evening"].map((time, idx) => (
+                <div key={time} style={{ background: TOKENS.bg, padding: 10, borderRadius: 6, border: `1px solid ${TOKENS.border}` }}>
+                  <div style={{ color: TOKENS.text, fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{time}</div>
+                  <div style={{ color: TOKENS.muted, fontSize: 11 }}>
+                    {idx === 0 && "Review dashboards\nPrioritize bottleneck"}
+                    {idx === 1 && "Close deals\nCustomer conversations"}
+                    {idx === 2 && "Improve agents\nImprove automation"}
+                    {idx === 3 && "Strategy + expansion"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
   const renderModule = () => {
     if (activeModule === "Dashboard") return renderDashboard();
     if (activeModule === "Ideas Lab") return renderIdeasLab();
@@ -5080,6 +5411,7 @@ Execution Score: ${weeklyExecutionScore}
     if (activeModule === "Weekly Metrics") return renderWeeklyMetrics();
     if (activeModule === "Learning Hub") return renderLearningHub();
     if (activeModule === "Mindset") return renderMindset();
+    if (activeModule === "AI Agents") return renderAIAgents();
     return null;
   };
 
@@ -5100,9 +5432,8 @@ Execution Score: ${weeklyExecutionScore}
             top: 14,
             zIndex: 1000,
             background: notice.tone === "error" ? "#341414" : notice.tone === "success" ? "#0F2B1E" : TOKENS.surface,
-            border: `1px solid ${
-              notice.tone === "error" ? TOKENS.red : notice.tone === "success" ? TOKENS.green : TOKENS.border
-            }`,
+            border: `1px solid ${notice.tone === "error" ? TOKENS.red : notice.tone === "success" ? TOKENS.green : TOKENS.border
+              }`,
             borderRadius: 12,
             padding: "10px 12px",
             minWidth: isMobile ? 240 : 340,
